@@ -1,6 +1,8 @@
 # Name/description patterns -> effects. See schemas/lexicon.schema.json for matching rules.
 # Names are split into lowercase words first: issue_refund, issueRefund, issue-refund -> "issue refund".
-# Keep patterns tight: a false positive costs more than a miss.
+# Endpoints are matched as "<method> <operationId> <path words>", e.g. "post create user rest api 3 user".
+# Keep patterns tight: a false positive costs more than a miss. Keep them linear: no nested quantifiers
+# (test/classify.test.ts times every pattern on 10k-char input). Regressions: test/fixtures/classify-corpus.json.
 
 - effect: read
   name_patterns:
@@ -19,45 +21,73 @@
   name_patterns:
     - "refunds?|refunded"
     - "payments?|pay|payouts?"
+    - "(create|post|make|initiate|send) ([a-z0-9]+ )?transfers?"
     - "(transfer|send|wire|move) (funds|money)"
     - "(wire|bank|fund|money) transfers?"
     - "charge|charges|charge card"
-    - "purchase|purchases|buy|checkout|place orders?"
-    - "(issue|add|apply|grant) (store |account )?credits?"
+    - "purchase|purchases|buy|checkout( sessions?)?|place orders?"
+    - "(issue|add|apply|grant) (store |account )?credits?(?! cards?)"
+    - "gift cards?|store credits?"
+    - "(complete|finalize) ([a-z0-9]+ )?(draft orders?|invoices?)"
+    - "draft orders? complete"
   not_patterns:
     - *read_verbs
-    - "status|statuses|polic(y|ies)|history|rules?|reports?|methods?|terms|eligibility|summary|stats|reminders?|notifications?|notices?|receipts?"
+    - "status|statuses|polic(y|ies)|history|rules?|reports?|methods?|terms|eligibility|summary|stats|scores?"
+    - "reminders?|notifications?|notices?|receipts?|rates?"
+    - "branch|branches|repo|repos|git|commit"
 
 - effect: external-send
   name_patterns:
     - "send|reply|forward"
-    - "(post|publish) (a )?(message|tweet|comment|status|update|to)"
+    - "(post|publish) (a )?(message|messages|tweet|comment|status|update|to)"
     - "webhooks?|sms"
-    - "http (request|post|call)"
+    - "http (request|post|call)|requests post"
+    - "notify (users?|customers?|contacts?|members?|recipients?)"
+    - "^email "
   description_patterns:
     - "sends? (an? )?(email|e mail|sms|text message|message|webhook)"
   not_patterns:
     - *read_verbs
     - "status|history|templates?|drafts?|(send|transfer|wire) (payments?|money|funds)$"
+    - "delete|remove|port"
 
+# Create/disable users, reset password or MFA, change roles/permissions, grant access.
+# Most patterns end at the identity noun (optionally "to/from/for ... <target>"), so "create user story",
+# "add admin note" and "remove access token" do not match.
 - effect: identity-admin
   name_patterns:
-    - "(reset|change|set|update|disable|remove|bypass) ([a-z0-9]+ )?(passwords?|mfa|2fa|two factor|otp)"
-    - "(create|delete|disable|enable|suspend|deactivate|reactivate|unlock|invite|provision|deprovision|offboard) ([a-z0-9]+ )?(users?|admins?|members?|employees?)"
-    - "(assign|grant|revoke|change|set|update|add|remove|elevate) ([a-z0-9]+ )?(roles?|permissions?|privileges?|access|admin)"
+    - "(reset|change|set|update|disable|remove|bypass|expire) ([a-z0-9]+ )?(passwords?|mfa|2fa|two factor|otp)( (to|from|in|on|for|of) [a-z0-9 ]+)?$"
+    - "(reset|unenroll|remove) (user |mfa )?factors?$"
+    - "(clear|revoke|expire|terminate) (user |users |all )?sessions?$"
+    - "(create|delete|disable|enable|suspend|unsuspend|deactivate|reactivate|unlock|invite|provision|deprovision|offboard|freeze|unfreeze) ([a-z0-9]+ )?(users?|admins?|members?|employees?|staff|staff members?)( (to|from|in|on|for|of) [a-z0-9 ]+)?$"
+    - "(assign|unassign|grant|revoke|change|set|update|add|remove|elevate) ([a-z0-9]+ )?(roles?|permissions?|permission sets?|privileges?|access|access levels?|admin|admins)( (to|from|in|on|for|of) [a-z0-9 ]+)?$"
+    - "(add|remove|assign|unassign|invite) ([a-z0-9]+ )?(users?|members?|collaborators?|staff) (to|from) ([a-z0-9]+ )?(groups?|apps?|applications?|teams?|orgs?|organi[sz]ations?|repos?|repositories|projects?|workspaces?)"
+    - "(add|remove|invite) collaborators?"
+    # Noun-verb names (GraphQL staffMemberCreate, Slack admin.users.remove).
+    - "(users?|staff members?|admins?|members?) (create|delete|remove|disable|deactivate|suspend|invite|reactivate|unlock)"
+    # REST paths: Okta lifecycle operations, group membership, user collections.
+    - "lifecycle (deactivate|suspend|unsuspend|unlock|activate|reactivate|reset password|expire password|reset factors)"
+    - "groups? (group )?id (users?|members?) (user |member )?id$"
+    - "^(post|delete) [a-z0-9 ]*users?( [a-z0-9]+ id)?$"
     - "impersonate"
   not_patterns:
     - *read_verbs
     - "rules?|polic(y|ies)|requirements?|strength|complexity"
+    - "stor(y|ies)|notes?|tokens?|comments?|tickets?|messages?|segments?"
 
 - effect: code-exec
   name_patterns:
-    - "(run|exec|execute|eval|evaluate) ([a-z0-9]+ )?(sql|query|queries|command|commands|shell|script|scripts|code|python|bash|javascript|js)"
-    - "shell|bash|terminal|eval|exec|raw sql|deploy"
+    - "(run|exec|execute|eval|evaluate) ([a-z0-9]+ )?(sql|soql|query|queries|command|commands|shell|script|scripts|code|python|bash|javascript|js|apex)"
+    - "shell|bash|raw sql|repl|anonymous apex"
+    - "(open|run|start) terminal|terminal (command|session|exec)s?"
+    - "deploy(?! keys?)"
+    - "(run|trigger|dispatch) workflows?"
+    - "(eval|evaluate) (expression|expressions|code|js|javascript|python)"
   param_patterns:
-    - "sql|raw sql|sql query|sql statement|shell command|cmd|bash command|python code|js code|javascript code"
+    - "sql|raw sql|sql query|sql statement|shell command|cmd|bash command|python code|js code|javascript code|apex code"
   not_patterns:
-    - "status|history|logs?"
+    - *read_verbs
+    - "status|history|logs?|keys?|readers?|summary|results?|aliases"
 
 # Export, list-all, unbounded reads.
 - effect: bulk

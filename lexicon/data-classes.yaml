@@ -1,16 +1,19 @@
 # Name, description and param patterns -> data classes. Param patterns match a parameter's whole leaf name
 # (customer.ssn -> "ssn"), so country_code never matches "code". Decision 2: the external-send mixing rule
 # relies on param (or explicit description) evidence, so keep param lists strong and specific.
+# not_patterns cancel name and description hits only, never param hits.
 
 - data: phi
   name_patterns:
     - "patients?|medical records?|health records?|diagnos(is|es)|prescriptions?|lab results?|clinical notes?|ehr|emr"
+    # FHIR clinical resources (hl7.org/fhir/resourcelist.html). Condition and Procedure are left out: too generic.
+    - "observations?|encounters?|medication (requests?|statements?|administrations?|dispenses?)|allergy intolerances?|allergies|immuni[sz]ations?|diagnostic reports?|care plans?"
   param_patterns:
-    - "patient id|patient ids|mrn|medical record number|diagnosis code|icd 10 code"
+    - "patient|patient id|patient ids|patient reference|encounter|encounter id|mrn|medical record number|diagnosis code|icd 10 code"
   description_patterns:
     - "protected health information|medical records?|patient records?"
   not_patterns:
-    - "count|stats|statistics|metrics"
+    - "count|stats|statistics|metrics|weather|telemetry"
 
 - data: pii
   name_patterns:
@@ -29,11 +32,12 @@
     - "card number|credit card number|iban|account number|bank account number|routing number|sort code|cvv|cvc|swift code|bic"
   not_patterns:
     - "count|stats|statistics|metrics"
+    - "leave|pto|vacation|sick|load|token|tokens"
 
 - data: credentials
   name_patterns:
     - "secrets?|passwords?|credentials?|api keys?|private keys?|access keys?"
   param_patterns:
-    - "password|passwd|api key|secret|client secret|private key|access token|refresh token|auth token|bearer token|secret key|access key"
+    - "password|passwd|new password|old password|current password|api key|secret|client secret|private key|access token|refresh token|auth token|bearer token|secret key|access key"
   not_patterns:
-    - "rules?|polic(y|ies)|requirements?|strength|complexity|expiry|expiration|length|reset|change|forgot|rotate|rotation"
+    - "rules?|polic(y|ies)|requirements?|strength|complexity|expire|expiry|expiration|length|reset|change|forgot|rotate|rotation"

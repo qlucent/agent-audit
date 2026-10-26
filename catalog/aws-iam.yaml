@@ -2,10 +2,12 @@
 # (docs.aws.amazon.com/service-authorization/latest/reference). Not exhaustive.
 #
 # Matching (case-insensitive, `*` is a glob): a policy action gets the union of every entry that
-#   - the policy action covers (policy `s3:*` covers `s3:DeleteObject`; policy `*` covers every entry), or
+#   - the policy action covers (policy `s3:*` covers `s3:DeleteObject`; policy `*` covers every entry; a generic
+#     `*:Verb*` entry is read in the policy's service, so policy `ec2:*` covers `*:Delete*`), or
 #   - covers the policy action (entry `*:Delete*` covers policy `ec2:DeleteVpc`).
 # An entry without a service prefix (only `*`) covers nothing but itself. Every other entry's effects must hold for
 # every action its pattern matches (so no summary entries like `s3:*`: policy `s3:Get*` would inherit delete).
+# test/classify.test.ts enforces both rules.
 # The label comes from the entry equal to the policy action, if any.
 
 - { pattern: "*", label: "Every action on every AWS service", effects: [read, write, delete, money, external-send, identity-admin, code-exec, bulk] }
@@ -21,7 +23,6 @@
 - { pattern: "*:Modify*", label: "Modify resources", effects: [write] }
 - { pattern: "*:Delete*", label: "Delete resources", effects: [delete] }
 - { pattern: "*:Terminate*", label: "Terminate resources", effects: [delete] }
-- { pattern: "*:Purchase*", label: "Purchase capacity or offerings", effects: [money] }
 
 # IAM and STS
 - { pattern: "iam:Create*", label: "Create IAM users, roles, policies or keys", effects: [write, identity-admin] }
@@ -39,7 +40,7 @@
 - { pattern: "iam:CreateLoginProfile", label: "Set an IAM user's console password", effects: [write, identity-admin], data: [credentials] }
 - { pattern: "iam:Get*", label: "Read IAM configuration", effects: [read] }
 - { pattern: "iam:List*", label: "List IAM configuration", effects: [read] }
-- { pattern: "sts:AssumeRole", label: "Assume another IAM role", effects: [] }
+- { pattern: "sts:AssumeRole*", label: "Assume another IAM role (takes on its permissions)", effects: [identity-admin] }
 - { pattern: "cognito-idp:AdminCreateUser", label: "Create Cognito users", effects: [write, identity-admin], data: [pii] }
 - { pattern: "cognito-idp:AdminDeleteUser", label: "Delete Cognito users", effects: [delete, identity-admin] }
 - { pattern: "cognito-idp:AdminDisableUser", label: "Disable Cognito users", effects: [write, identity-admin] }
@@ -85,6 +86,7 @@
 - { pattern: "sns:Publish", label: "Publish SNS messages (SMS, email, HTTP)", effects: [external-send] }
 
 # Money
-- { pattern: "ec2:PurchaseReservedInstancesOffering", label: "Buy EC2 Reserved Instances", effects: [money] }
-- { pattern: "savingsplans:CreateSavingsPlan", label: "Buy a Savings Plan", effects: [money] }
+- { pattern: "ec2:Purchase*", label: "Buy EC2 capacity (Reserved Instances, Capacity Blocks, hosts)", effects: [money] }
+- { pattern: "rds:PurchaseReservedDBInstancesOffering", label: "Buy RDS Reserved Instances", effects: [money] }
+- { pattern: "savingsplans:CreateSavingsPlan", label: "Buy a Savings Plan", effects: [write, money] }
 - { pattern: "aws-marketplace:Subscribe", label: "Subscribe to AWS Marketplace products", effects: [money] }

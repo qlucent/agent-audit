@@ -62,9 +62,12 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
     if (a.kind === 'iam') {
       const name = a.name.toLowerCase();
       const pre = glob(a.name);
+      const svc = name.includes(':') ? name.split(':')[0] : undefined;
       for (const e of iam) {
-        // Policy action covers the entry, or a service-prefixed entry covers the policy action.
-        if (e.lower === name || pre.test(e.pattern) || (e.pattern.includes(':') && e.re.test(a.name))) {
+        // Policy action covers the entry (a generic `*:Verb*` entry is read in the policy's service, so `ec2:*` covers
+        // `*:Delete*`), or a service-prefixed entry covers the policy action.
+        const covered = pre.test(e.pattern) || (svc !== undefined && e.pattern.startsWith('*:') && pre.test(`${svc}:${e.pattern.slice(2)}`));
+        if (e.lower === name || covered || (e.pattern.includes(':') && e.re.test(a.name))) {
           if (e.lower === name) a.label = e.label;
           fromCatalog(e.label, e.effects, e.data);
         }
@@ -75,7 +78,8 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
     if (a.kind === 'mcp-server') return a;
 
     if (a.kind === 'tool' && a.label === a.name) a.label = humanise(a.name);
-    const name = a.kind === 'endpoint' ? words(`${a.method ?? ''} ${a.operationId ?? a.name.replace(/^\S+\s/, '')}`) : words(a.name);
+    // Endpoints: method, operationId and path together, e.g. "post create user rest api 3 user".
+    const name = a.kind === 'endpoint' ? words(`${a.method ?? ''} ${a.operationId ?? ''} ${a.name.replace(/^\S+\s/, '')}`) : words(a.name);
     const desc = a.description ? words(a.description) : '';
     const leaves = a.params.map((p) => ({ p, w: words(p.name.split('.').at(-1)!) }));
 
@@ -83,21 +87,24 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
     for (const e of lex) {
       if (!e.tag) continue;
       const tag = e.tag as Effect | DataClass;
-      if (e.not?.test(name)) continue;
-      const n = e.name?.exec(name);
-      if (n) add(tag, `name contains "${n[0]}"`, 'name');
-      const d = desc && !e.not?.test(desc) ? e.desc?.exec(desc) : null;
-      if (d) add(tag, `description mentions "${d[0]}"`, 'description');
+      // not_patterns cancel name and description hits only; a param name is strong evidence on its own.
+      if (!e.not?.test(name)) {
+        const n = e.name?.exec(name);
+        if (n) add(tag, `name contains "${n[0]}"`, 'name');
+        const d = desc && !e.not?.test(desc) ? e.desc?.exec(desc) : null;
+        if (d) add(tag, `description mentions "${d[0]}"`, 'description');
+      }
       for (const { p, w } of leaves) if (e.param?.test(w)) add(tag, `param "${p.name}"`, 'param');
     }
 
     const hints = a.annotations ?? {};
+    // Hints are self-declared by the server: they add effects, never remove them (ruling R4).
     if (hints.readOnlyHint) {
-      // A read-only tool reads (possibly in bulk) and nothing else.
-      a.effects = a.effects.filter((x) => x === 'read' || x === 'bulk');
-      a.evidence = a.evidence.filter((x) => !ALL.includes(x.effect as Effect) || a.effects.includes(x.effect as Effect));
+      for (const x of a.evidence.filter((v) => v.effect !== 'read' && v.effect !== 'bulk' && ALL.includes(v.effect as Effect)))
+        add(x.effect, `MCP readOnlyHint claims read-only, but ${x.why}`, 'annotation');
       add('read', 'MCP readOnlyHint', 'annotation');
-    } else if (hints.destructiveHint) add('delete', 'MCP destructiveHint', 'annotation');
+    }
+    if (hints.destructiveHint) add('delete', 'MCP destructiveHint', 'annotation');
     if (hints.openWorldHint) {
       const to = leaves.find(({ w }) => dest.some((e) => e.param?.test(w)));
       if (to) add('external-send', `MCP openWorldHint with destination param "${to.p.name}"`, 'annotation');
