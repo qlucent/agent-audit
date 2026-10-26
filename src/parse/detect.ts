@@ -18,6 +18,15 @@ export interface Detected {
 
 /** Spec decision 8: the first full match wins; a partial or unknown shape is unrecognised (format null, no error). */
 export function detect(input: { name: string; text: string }): Detected {
+  try {
+    return run(input);
+  } catch {
+    // e.g. RangeError from very deep nesting: this file fails, the rest of the batch still parses.
+    return { format: null, actions: [], error: { message: 'Could not parse (nesting too deep?)', line: 1, column: 1 } };
+  }
+}
+
+function run(input: { name: string; text: string }): Detected {
   const { doc, error } = parseText(input.name, input.text);
   if (!doc) return { format: null, actions: [], ...(error && { error }) };
   const m = manifest.parse(doc);
@@ -31,9 +40,12 @@ export function detect(input: { name: string; text: string }): Detected {
     ['openai-tools', () => openai.parse(doc, input.name)],
     ['oauth-scopes', () => oauth.parse(doc, input.name)],
   ];
-  for (const [format, run] of order) {
-    const actions = run();
-    if (actions) return { format, actions };
+  // An MCP config with no servers (e.g. matched only by filename) yields to a later format that matches.
+  let emptyMcp: Detected | undefined;
+  for (const [format, parse] of order) {
+    const actions = parse();
+    if (format === 'mcp-config' && actions?.length === 0) emptyMcp = { format, actions };
+    else if (actions) return { format, actions };
   }
-  return { format: null, actions: [] };
+  return emptyMcp ?? { format: null, actions: [] };
 }

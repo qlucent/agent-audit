@@ -6,7 +6,7 @@ export function parse(doc: Doc, file: string): Action[] | null {
   const found = toolList(doc.value);
   if (!found) return null;
   const [items, base] = found;
-  if (!items.every((t) => isObj(t) && typeof t.name === 'string' && isObj(t.inputSchema))) return null;
+  if (!items.every((t) => isObj(t) && typeof t.name === 'string' && isObj(t.inputSchema) && !('input_schema' in t))) return null;
   return items.map((t, i) => {
     const raw = isObj(t.annotations) ? t.annotations : {};
     const annotations: Record<string, boolean> = Object.fromEntries(

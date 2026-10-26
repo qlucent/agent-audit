@@ -17,8 +17,7 @@ test('detection order: IAM before OpenAPI before MCP config before tool lists', 
   assert.equal(fmt(j({ Version: '2012-10-17', Statement: [], openapi: '3.0.0', paths: {} })).format, 'aws-iam');
   // OpenAPI has a top-level `servers`, which mcp-audit would read as a VS Code config.
   assert.equal(fmt(j({ openapi: '3.1.0', servers: [{ url: 'https://api.example.com' }], paths: {} })).format, 'openapi');
-  assert.equal(fmt(j({ mcpServers: {}, tools: [{ name: 't', inputSchema: {} }] })).format, 'mcp-config');
-  assert.equal(fmt(j({ tools: [{ name: 't', inputSchema: {}, input_schema: {} }] })).format, 'mcp-tools');
+  assert.equal(fmt(j({ mcpServers: { s: { command: 'node' } }, tools: [{ name: 't', inputSchema: {} }] })).format, 'mcp-config');
   assert.equal(fmt(j([{ name: 't', input_schema: {}, type: 'function' }])).format, 'anthropic-tools');
 });
 
@@ -90,4 +89,33 @@ test('BOM and CRLF keep locations right', () => {
   assert.deepEqual([r.actions[0]!.loc.line, r.actions[0]!.loc.column], [3, 7]);
   const y = parseInputs([{ name: 'x.yaml', text: 'tools:\r\n  - name: a\r\n    inputSchema: {}\r\n' }]);
   assert.deepEqual([y.actions[0]!.loc.line, y.actions[0]!.loc.column], [2, 5]);
+});
+
+test('a file that throws while parsing becomes that file error; the batch goes on', () => {
+  const deep = '['.repeat(5000) + ']'.repeat(5000);
+  const ok = j({ tools: [{ name: 'a', inputSchema: {} }] });
+  const r = parseInputs([{ name: 'deep.json', text: deep }, { name: 'ok.json', text: ok }]);
+  assert.equal(r.files[0]!.format, null);
+  assert.ok(r.files[0]!.error);
+  assert.equal(r.files[0]!.actions, 0);
+  assert.equal(r.files[1]!.format, 'mcp-tools');
+  assert.deepEqual(r.actions.map((a) => a.name), ['a']);
+});
+
+test('`agent` that is not an object is not a manifest (Claude Code settings.json)', () => {
+  const f = fmt(j({ agent: 'reviewer', permissions: { allow: ['Bash(npm test)'] } }), 'settings.json');
+  assert.equal(f.format, 'mcp-config');
+  assert.equal(f.error, undefined);
+});
+
+test('mcp-config by filename with 0 servers falls through to later formats', () => {
+  const r = parseInputs([{ name: '.mcp.json', text: j({ tools: [{ name: 'a', inputSchema: {} }] }) }]);
+  assert.equal(r.files[0]!.format, 'mcp-tools');
+  assert.deepEqual(r.mcpFiles, []);
+  // No later format matches: still mcp-config.
+  assert.equal(fmt(j({ mcpServers: {} }), '.mcp.json').format, 'mcp-config');
+});
+
+test('item with both inputSchema and input_schema is ambiguous: unrecognised', () => {
+  assert.equal(fmt(j({ tools: [{ name: 't', inputSchema: {}, input_schema: {} }] })).unrecognised, true);
 });

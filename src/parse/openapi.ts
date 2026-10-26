@@ -26,6 +26,12 @@ export function parse(doc: Doc, file: string): Action[] | null {
         if (!Array.isArray(list)) return;
         list.forEach((raw, i) => {
           const [prm, pp] = deref(doc, raw, [...p, i]);
+          // External or missing $ref: keep a placeholder named after the ref, type unknown.
+          if (isObj(raw) && typeof raw.$ref === 'string' && (!isObj(prm) || '$ref' in prm)) {
+            const name = raw.$ref.split(/[/#]/).filter(Boolean).at(-1) ?? raw.$ref;
+            byKey.set(`ref:${raw.$ref}`, { name, loc: doc.loc([...p, i, '$ref']) });
+            return;
+          }
           if (!isObj(prm) || typeof prm.name !== 'string') return;
           const [schema] = deref(doc, prm.schema, [...pp, 'schema']);
           byKey.set(`${prm.in}:${prm.name}`, param(prm.name, schema, doc.loc([...pp, 'name'])));

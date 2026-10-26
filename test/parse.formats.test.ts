@@ -5,6 +5,7 @@ import { parseInputs } from '../src/parse/index.ts';
 
 const fx = (name: string) => ({ name, text: readFileSync(new URL(`./fixtures/specs/${name}`, import.meta.url), 'utf8') });
 const one = (name: string) => parseInputs([fx(name)]);
+const j = (v: unknown) => JSON.stringify(v, null, 2);
 const lines = (r: ReturnType<typeof parseInputs>) => r.actions.map((a) => [a.name, a.loc.line, a.loc.column]);
 
 test('OpenAI Chat Completions tools (JSONC with comment and trailing comma)', () => {
@@ -117,4 +118,13 @@ test('MCP client config: one action per server, file passed through', () => {
   assert.deepEqual(lines(r), [['filesystem', 3, 5], ['github', 7, 5]]);
   assert.equal(r.actions[0]!.kind, 'mcp-server');
   assert.deepEqual(r.mcpFiles.map((f) => f.name), ['claude_desktop_config.json']);
+});
+
+test('OpenAPI: external or missing $ref parameters stay as placeholders', () => {
+  const text = j({
+    openapi: '3.0.0',
+    paths: { '/a': { get: { parameters: [{ $ref: 'common.yaml#/components/parameters/AccountId' }, { $ref: '#/components/parameters/Missing' }] } } },
+  });
+  const p = parseInputs([{ name: 'o.json', text }]).actions[0]!.params;
+  assert.deepEqual(p.map((x) => [x.name, x.type, x.loc?.line]), [['AccountId', undefined, 8], ['Missing', undefined, 11]]);
 });

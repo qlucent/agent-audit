@@ -40,10 +40,10 @@ function validate(s: Schema, v: unknown, path: Path): [Path, string] | null {
   return null;
 }
 
-/** A top-level `agent:` object is a manifest; it must validate against schemas/manifest.schema.json. */
+/** A top-level `agent:` object (not e.g. Claude Code's `agent` string setting) is a manifest; it must validate against schemas/manifest.schema.json. */
 export function parse(doc: Doc): { manifest?: Manifest; error?: ParseError } | null {
   const v = doc.value;
-  if (!isObj(v) || !('agent' in v)) return null;
+  if (!isObj(v) || !isObj(v.agent)) return null;
   const e = validate((data as { manifestSchema: Schema }).manifestSchema, v, []);
   if (!e) return { manifest: v as Manifest };
   const { line, column } = doc.loc(e[0], false);

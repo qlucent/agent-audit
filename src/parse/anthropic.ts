@@ -6,7 +6,7 @@ export function parse(doc: Doc, file: string): Action[] | null {
   const found = toolList(doc.value);
   if (!found) return null;
   const [items, base] = found;
-  if (!items.every((t) => isObj(t) && typeof t.name === 'string' && isObj(t.input_schema))) return null;
+  if (!items.every((t) => isObj(t) && typeof t.name === 'string' && isObj(t.input_schema) && !('inputSchema' in t))) return null;
   return items.map((t, i) =>
     action(file, doc.loc([...base, i, 'name']), {
       name: t.name,
