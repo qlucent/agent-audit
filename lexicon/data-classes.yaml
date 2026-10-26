@@ -1,0 +1,39 @@
+# Name, description and param patterns -> data classes. Param patterns match a parameter's whole leaf name
+# (customer.ssn -> "ssn"), so country_code never matches "code". Decision 2: the external-send mixing rule
+# relies on param (or explicit description) evidence, so keep param lists strong and specific.
+
+- data: phi
+  name_patterns:
+    - "patients?|medical records?|health records?|diagnos(is|es)|prescriptions?|lab results?|clinical notes?|ehr|emr"
+  param_patterns:
+    - "patient id|patient ids|mrn|medical record number|diagnosis code|icd 10 code"
+  description_patterns:
+    - "protected health information|medical records?|patient records?"
+  not_patterns:
+    - "count|stats|statistics|metrics"
+
+- data: pii
+  name_patterns:
+    - "customers?|contacts?|employees?|personal (data|details|info|information)"
+  param_patterns:
+    - "ssn|social security number|dob|date of birth|birth date|passport number|national id|national id number|tax id|driver license number|drivers license number"
+  description_patterns:
+    - "personal(ly identifiable)? (data|information)"
+  not_patterns:
+    - "count|stats|statistics|metrics|segments?"
+
+- data: financial-data
+  name_patterns:
+    - "bank accounts?|account balances?|balances?|(bank|card|account) statements?|card numbers?|credit cards?|iban|payroll"
+  param_patterns:
+    - "card number|credit card number|iban|account number|bank account number|routing number|sort code|cvv|cvc|swift code|bic"
+  not_patterns:
+    - "count|stats|statistics|metrics"
+
+- data: credentials
+  name_patterns:
+    - "secrets?|passwords?|credentials?|api keys?|private keys?|access keys?"
+  param_patterns:
+    - "password|passwd|api key|secret|client secret|private key|access token|refresh token|auth token|bearer token|secret key|access key"
+  not_patterns:
+    - "rules?|polic(y|ies)|requirements?|strength|complexity|expiry|expiration|length|reset|change|forgot|rotate|rotation"

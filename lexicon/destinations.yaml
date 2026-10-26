@@ -1,0 +1,4 @@
+# Params that name a free destination (recipient, URL, webhook). Used with MCP openWorldHint
+# (external-send needs both) and by the external-send mixing rule (spec decision 2).
+- param_patterns:
+    - "to|cc|bcc|recipient|recipients|email|email address|phone|phone number|url|uri|endpoint|webhook|webhook url|callback url|target url|destination|destination url"

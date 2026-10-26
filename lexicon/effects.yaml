@@ -1,0 +1,66 @@
+# Name/description patterns -> effects. See schemas/lexicon.schema.json for matching rules.
+# Names are split into lowercase words first: issue_refund, issueRefund, issue-refund -> "issue refund".
+# Keep patterns tight: a false positive costs more than a miss.
+
+- effect: read
+  name_patterns:
+    - &read_verbs "get|list|lookup|look up|search|find|fetch|read|view|show|describe|retrieve|check|count"
+
+- effect: write
+  name_patterns:
+    - "create|add|update|edit|modify|set|save|insert|upsert|submit|upload|change|rename|move|assign|patch"
+
+- effect: delete
+  name_patterns:
+    - "delete|remove|destroy|drop|purge|erase|wipe|truncate"
+
+# Moves or commits money.
+- effect: money
+  name_patterns:
+    - "refunds?|refunded"
+    - "payments?|pay|payouts?"
+    - "(transfer|send|wire|move) (funds|money)"
+    - "(wire|bank|fund|money) transfers?"
+    - "charge|charges|charge card"
+    - "purchase|purchases|buy|checkout|place orders?"
+    - "(issue|add|apply|grant) (store |account )?credits?"
+  not_patterns:
+    - *read_verbs
+    - "status|statuses|polic(y|ies)|history|rules?|reports?|methods?|terms|eligibility|summary|stats|reminders?|notifications?|notices?|receipts?"
+
+- effect: external-send
+  name_patterns:
+    - "send|reply|forward"
+    - "(post|publish) (a )?(message|tweet|comment|status|update|to)"
+    - "webhooks?|sms"
+    - "http (request|post|call)"
+  description_patterns:
+    - "sends? (an? )?(email|e mail|sms|text message|message|webhook)"
+  not_patterns:
+    - *read_verbs
+    - "status|history|templates?|drafts?|(send|transfer|wire) (payments?|money|funds)$"
+
+- effect: identity-admin
+  name_patterns:
+    - "(reset|change|set|update|disable|remove|bypass) ([a-z0-9]+ )?(passwords?|mfa|2fa|two factor|otp)"
+    - "(create|delete|disable|enable|suspend|deactivate|reactivate|unlock|invite|provision|deprovision|offboard) ([a-z0-9]+ )?(users?|admins?|members?|employees?)"
+    - "(assign|grant|revoke|change|set|update|add|remove|elevate) ([a-z0-9]+ )?(roles?|permissions?|privileges?|access|admin)"
+    - "impersonate"
+  not_patterns:
+    - *read_verbs
+    - "rules?|polic(y|ies)|requirements?|strength|complexity"
+
+- effect: code-exec
+  name_patterns:
+    - "(run|exec|execute|eval|evaluate) ([a-z0-9]+ )?(sql|query|queries|command|commands|shell|script|scripts|code|python|bash|javascript|js)"
+    - "shell|bash|terminal|eval|exec|raw sql|deploy"
+  param_patterns:
+    - "sql|raw sql|sql query|sql statement|shell command|cmd|bash command|python code|js code|javascript code"
+  not_patterns:
+    - "status|history|logs?"
+
+# Export, list-all, unbounded reads.
+- effect: bulk
+  name_patterns:
+    - "export|bulk|dump"
+    - "(list|get|fetch|download|read|search) all"

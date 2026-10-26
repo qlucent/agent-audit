@@ -37,9 +37,40 @@ export interface Action {
   condition?: Record<string, unknown>;
   effects: Effect[];
   data: DataClass[];
-  evidence: { effect: Effect | DataClass; why: string }[];
+  evidence: Evidence[];
+  /** OAuth scope the catalogue marks broad. */
+  broad?: true;
   /** Index of the earlier action with the same name in another file. */
   duplicateOf?: number;
+}
+
+export interface Evidence {
+  effect: Effect | DataClass;
+  why: string;
+  via: 'name' | 'description' | 'param' | 'method' | 'annotation' | 'catalog';
+}
+
+/** Lexicon entry (lexicon/*.yaml). Patterns are regex sources, matched case-insensitively on words split from snake/camel/kebab. */
+export interface LexEntry {
+  effect?: Effect;
+  data?: DataClass;
+  domain?: Domain;
+  /** Word-boundary match on the action name (or manifest purpose, for domains). */
+  name_patterns?: string[];
+  description_patterns?: string[];
+  /** Whole-name match on a parameter's leaf name. */
+  param_patterns?: string[];
+  /** Any match on the name (or description, for description hits) cancels the entry. */
+  not_patterns?: string[];
+}
+export interface ScopeEntry { scope: string; label: string; effects: Effect[]; data?: DataClass[]; broad?: boolean }
+export interface IamEntry { pattern: string; label: string; effects: Effect[]; data?: DataClass[] }
+export interface GeneratedData {
+  rules: unknown[];
+  lexicon: Record<string, LexEntry[]>;
+  scopes: ScopeEntry[];
+  iam: IamEntry[];
+  manifestSchema: unknown;
 }
 
 export interface Manifest {

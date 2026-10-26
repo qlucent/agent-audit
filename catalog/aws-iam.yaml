@@ -1,0 +1,90 @@
+# AWS IAM action patterns -> effects. Common entries from the public Service Authorization Reference
+# (docs.aws.amazon.com/service-authorization/latest/reference). Not exhaustive.
+#
+# Matching (case-insensitive, `*` is a glob): a policy action gets the union of every entry that
+#   - the policy action covers (policy `s3:*` covers `s3:DeleteObject`; policy `*` covers every entry), or
+#   - covers the policy action (entry `*:Delete*` covers policy `ec2:DeleteVpc`).
+# An entry without a service prefix (only `*`) covers nothing but itself. Every other entry's effects must hold for
+# every action its pattern matches (so no summary entries like `s3:*`: policy `s3:Get*` would inherit delete).
+# The label comes from the entry equal to the policy action, if any.
+
+- { pattern: "*", label: "Every action on every AWS service", effects: [read, write, delete, money, external-send, identity-admin, code-exec, bulk] }
+
+# Generic verbs
+- { pattern: "*:Get*", label: "Read resources", effects: [read] }
+- { pattern: "*:BatchGet*", label: "Read resources", effects: [read] }
+- { pattern: "*:List*", label: "List resources", effects: [read] }
+- { pattern: "*:Describe*", label: "Describe resources", effects: [read] }
+- { pattern: "*:Create*", label: "Create resources", effects: [write] }
+- { pattern: "*:Put*", label: "Write resources", effects: [write] }
+- { pattern: "*:Update*", label: "Update resources", effects: [write] }
+- { pattern: "*:Modify*", label: "Modify resources", effects: [write] }
+- { pattern: "*:Delete*", label: "Delete resources", effects: [delete] }
+- { pattern: "*:Terminate*", label: "Terminate resources", effects: [delete] }
+- { pattern: "*:Purchase*", label: "Purchase capacity or offerings", effects: [money] }
+
+# IAM and STS
+- { pattern: "iam:Create*", label: "Create IAM users, roles, policies or keys", effects: [write, identity-admin] }
+- { pattern: "iam:Delete*", label: "Delete IAM users, roles, policies or keys", effects: [delete, identity-admin] }
+- { pattern: "iam:Update*", label: "Update IAM users, roles or policies", effects: [write, identity-admin] }
+- { pattern: "iam:Put*", label: "Write IAM inline policies", effects: [write, identity-admin] }
+- { pattern: "iam:Attach*", label: "Attach IAM policies", effects: [write, identity-admin] }
+- { pattern: "iam:Detach*", label: "Detach IAM policies", effects: [write, identity-admin] }
+- { pattern: "iam:Add*", label: "Add IAM users to groups or roles to profiles", effects: [write, identity-admin] }
+- { pattern: "iam:Remove*", label: "Remove IAM group members or profile roles", effects: [write, identity-admin] }
+- { pattern: "iam:SetDefaultPolicyVersion", label: "Switch an IAM policy version", effects: [write, identity-admin] }
+- { pattern: "iam:PassRole", label: "Pass an IAM role to a service", effects: [identity-admin] }
+- { pattern: "iam:CreateAccessKey", label: "Create IAM access keys", effects: [write, identity-admin], data: [credentials] }
+- { pattern: "iam:CreateUser", label: "Create IAM users", effects: [write, identity-admin] }
+- { pattern: "iam:CreateLoginProfile", label: "Set an IAM user's console password", effects: [write, identity-admin], data: [credentials] }
+- { pattern: "iam:Get*", label: "Read IAM configuration", effects: [read] }
+- { pattern: "iam:List*", label: "List IAM configuration", effects: [read] }
+- { pattern: "sts:AssumeRole", label: "Assume another IAM role", effects: [] }
+- { pattern: "cognito-idp:AdminCreateUser", label: "Create Cognito users", effects: [write, identity-admin], data: [pii] }
+- { pattern: "cognito-idp:AdminDeleteUser", label: "Delete Cognito users", effects: [delete, identity-admin] }
+- { pattern: "cognito-idp:AdminDisableUser", label: "Disable Cognito users", effects: [write, identity-admin] }
+- { pattern: "cognito-idp:AdminSetUserPassword", label: "Set Cognito users' passwords", effects: [write, identity-admin], data: [credentials] }
+- { pattern: "cognito-idp:AdminResetUserPassword", label: "Reset Cognito users' passwords", effects: [write, identity-admin] }
+
+# S3
+- { pattern: "s3:GetObject", label: "Read S3 objects", effects: [read] }
+- { pattern: "s3:ListBucket", label: "List S3 bucket contents", effects: [read] }
+- { pattern: "s3:PutObject", label: "Write S3 objects", effects: [write] }
+- { pattern: "s3:DeleteObject", label: "Delete S3 objects", effects: [delete] }
+- { pattern: "s3:DeleteBucket", label: "Delete S3 buckets", effects: [delete] }
+
+# DynamoDB and RDS
+- { pattern: "dynamodb:GetItem", label: "Read DynamoDB items", effects: [read] }
+- { pattern: "dynamodb:Query", label: "Query DynamoDB tables", effects: [read] }
+- { pattern: "dynamodb:Scan", label: "Scan whole DynamoDB tables", effects: [read, bulk] }
+- { pattern: "dynamodb:PutItem", label: "Write DynamoDB items", effects: [write] }
+- { pattern: "dynamodb:UpdateItem", label: "Update DynamoDB items", effects: [write] }
+- { pattern: "dynamodb:DeleteItem", label: "Delete DynamoDB items", effects: [delete] }
+- { pattern: "dynamodb:ExportTableToPointInTime", label: "Export DynamoDB tables", effects: [read, bulk] }
+- { pattern: "rds:StartExportTask", label: "Export RDS snapshots", effects: [read, bulk] }
+- { pattern: "rds-data:ExecuteStatement", label: "Run SQL on RDS", effects: [read, write, delete, code-exec] }
+
+# Secrets
+- { pattern: "secretsmanager:GetSecretValue", label: "Read Secrets Manager secrets", effects: [read], data: [credentials] }
+- { pattern: "ssm:GetParameter", label: "Read SSM parameters", effects: [read], data: [credentials] }
+- { pattern: "ssm:GetParameters", label: "Read SSM parameters", effects: [read], data: [credentials] }
+- { pattern: "ssm:GetParametersByPath", label: "Read SSM parameters by path", effects: [read], data: [credentials] }
+
+# Code execution
+- { pattern: "ssm:SendCommand", label: "Run commands on EC2 instances", effects: [code-exec] }
+- { pattern: "ssm:StartSession", label: "Open a shell on EC2 instances", effects: [code-exec] }
+- { pattern: "lambda:CreateFunction", label: "Create Lambda functions", effects: [write, code-exec] }
+- { pattern: "lambda:UpdateFunctionCode", label: "Replace Lambda function code", effects: [write, code-exec] }
+- { pattern: "lambda:InvokeFunction", label: "Invoke Lambda functions", effects: [write] }
+- { pattern: "ec2:RunInstances", label: "Launch EC2 instances", effects: [write] }
+- { pattern: "ecs:RunTask", label: "Run ECS tasks", effects: [write, code-exec] }
+
+# Sending
+- { pattern: "ses:SendEmail", label: "Send email with SES", effects: [external-send] }
+- { pattern: "ses:SendRawEmail", label: "Send raw email with SES", effects: [external-send] }
+- { pattern: "sns:Publish", label: "Publish SNS messages (SMS, email, HTTP)", effects: [external-send] }
+
+# Money
+- { pattern: "ec2:PurchaseReservedInstancesOffering", label: "Buy EC2 Reserved Instances", effects: [money] }
+- { pattern: "savingsplans:CreateSavingsPlan", label: "Buy a Savings Plan", effects: [money] }
+- { pattern: "aws-marketplace:Subscribe", label: "Subscribe to AWS Marketplace products", effects: [money] }

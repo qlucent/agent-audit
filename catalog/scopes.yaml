@@ -1,0 +1,85 @@
+# Common OAuth scopes from public provider docs. Not exhaustive.
+# broad: true = access across all of the user's (or tenant's) data of that kind, or admin/send rights.
+# Sources: developers.google.com/identity/protocols/oauth2/scopes, learn.microsoft.com/graph/permissions-reference,
+# api.slack.com/scopes, docs.github.com (scopes for OAuth apps).
+
+# Google
+- { scope: "https://www.googleapis.com/auth/drive", label: "See, edit, create and delete all Google Drive files", effects: [read, write, delete], broad: true }
+- { scope: "https://www.googleapis.com/auth/drive.readonly", label: "See and download all Google Drive files", effects: [read], broad: true }
+- { scope: "https://www.googleapis.com/auth/drive.file", label: "Google Drive files this app created or opened", effects: [read, write, delete] }
+- { scope: "https://www.googleapis.com/auth/drive.metadata.readonly", label: "See Google Drive file metadata", effects: [read] }
+- { scope: "https://www.googleapis.com/auth/gmail.readonly", label: "Read all Gmail messages and settings", effects: [read], data: [pii], broad: true }
+- { scope: "https://www.googleapis.com/auth/gmail.send", label: "Send email as the user (Gmail)", effects: [external-send], broad: true }
+- { scope: "https://www.googleapis.com/auth/gmail.compose", label: "Manage Gmail drafts and send email", effects: [write, external-send], broad: true }
+- { scope: "https://www.googleapis.com/auth/gmail.modify", label: "Read, compose and send Gmail messages", effects: [read, write, external-send], data: [pii], broad: true }
+- { scope: "https://www.googleapis.com/auth/calendar", label: "See, edit, share and delete all Google calendars", effects: [read, write, delete], broad: true }
+- { scope: "https://www.googleapis.com/auth/calendar.readonly", label: "See Google calendars", effects: [read] }
+- { scope: "https://www.googleapis.com/auth/calendar.events", label: "View and edit events on all Google calendars", effects: [read, write, delete] }
+- { scope: "https://www.googleapis.com/auth/spreadsheets", label: "See, edit, create and delete all Google Sheets", effects: [read, write, delete], broad: true }
+- { scope: "https://www.googleapis.com/auth/spreadsheets.readonly", label: "See all Google Sheets", effects: [read], broad: true }
+- { scope: "https://www.googleapis.com/auth/contacts", label: "See, edit and delete Google contacts", effects: [read, write, delete], data: [pii], broad: true }
+- { scope: "https://www.googleapis.com/auth/contacts.readonly", label: "See Google contacts", effects: [read], data: [pii] }
+- { scope: "https://www.googleapis.com/auth/userinfo.email", label: "See the user's email address", effects: [read], data: [pii] }
+- { scope: "https://www.googleapis.com/auth/userinfo.profile", label: "See the user's basic profile", effects: [read], data: [pii] }
+- { scope: "https://www.googleapis.com/auth/admin.directory.user", label: "Manage Google Workspace users", effects: [read, write, delete, identity-admin], data: [pii], broad: true }
+- { scope: "https://www.googleapis.com/auth/admin.directory.user.readonly", label: "See Google Workspace users", effects: [read], data: [pii] }
+- { scope: "https://www.googleapis.com/auth/admin.directory.group", label: "Manage Google Workspace groups and members", effects: [read, write, delete, identity-admin], broad: true }
+- { scope: "https://www.googleapis.com/auth/cloud-platform", label: "Full access to Google Cloud resources", effects: [read, write, delete, code-exec], broad: true }
+
+# Microsoft Graph (also matched with the https://graph.microsoft.com/ prefix)
+- { scope: "User.Read", label: "Read the signed-in user's profile", effects: [read], data: [pii] }
+- { scope: "User.Read.All", label: "Read all users' profiles", effects: [read], data: [pii], broad: true }
+- { scope: "User.ReadWrite.All", label: "Read and write all users' profiles", effects: [read, write, identity-admin], data: [pii], broad: true }
+- { scope: "Directory.Read.All", label: "Read directory data", effects: [read], data: [pii], broad: true }
+- { scope: "Directory.ReadWrite.All", label: "Read and write directory data", effects: [read, write, delete, identity-admin], data: [pii], broad: true }
+- { scope: "Group.ReadWrite.All", label: "Read and write all groups", effects: [read, write, delete, identity-admin], broad: true }
+- { scope: "RoleManagement.ReadWrite.Directory", label: "Read and write directory role assignments", effects: [read, write, identity-admin], broad: true }
+- { scope: "Application.ReadWrite.All", label: "Read and write all app registrations", effects: [read, write, delete, identity-admin], broad: true }
+- { scope: "Mail.Read", label: "Read the user's mail", effects: [read], data: [pii] }
+- { scope: "Mail.ReadWrite", label: "Read and write the user's mail", effects: [read, write, delete], data: [pii] }
+- { scope: "Mail.Read.All", label: "Read mail in all mailboxes", effects: [read], data: [pii], broad: true }
+- { scope: "Mail.Send", label: "Send mail as the user", effects: [external-send], broad: true }
+- { scope: "Files.Read", label: "Read the user's files", effects: [read] }
+- { scope: "Files.ReadWrite", label: "Read and write the user's files", effects: [read, write, delete] }
+- { scope: "Files.Read.All", label: "Read all files the user can access", effects: [read], broad: true }
+- { scope: "Files.ReadWrite.All", label: "Read and write all files the user can access", effects: [read, write, delete], broad: true }
+- { scope: "Sites.Read.All", label: "Read items in all SharePoint sites", effects: [read], broad: true }
+- { scope: "Sites.ReadWrite.All", label: "Read and write items in all SharePoint sites", effects: [read, write, delete], broad: true }
+- { scope: "Calendars.Read", label: "Read the user's calendars", effects: [read] }
+- { scope: "Calendars.ReadWrite", label: "Read and write the user's calendars", effects: [read, write, delete] }
+- { scope: "Chat.ReadWrite", label: "Read and send the user's Teams chat messages", effects: [read, write, external-send] }
+- { scope: "ChannelMessage.Send", label: "Send Teams channel messages", effects: [external-send] }
+
+# Slack
+- { scope: "chat:write", label: "Post messages in Slack", effects: [external-send] }
+- { scope: "chat:write.public", label: "Post messages in any public Slack channel", effects: [external-send], broad: true }
+- { scope: "channels:read", label: "See public Slack channels", effects: [read] }
+- { scope: "channels:history", label: "Read messages in public Slack channels", effects: [read] }
+- { scope: "groups:history", label: "Read messages in private Slack channels", effects: [read] }
+- { scope: "im:history", label: "Read Slack direct messages", effects: [read], data: [pii] }
+- { scope: "users:read", label: "See people in the Slack workspace", effects: [read] }
+- { scope: "users:read.email", label: "See Slack users' email addresses", effects: [read], data: [pii] }
+- { scope: "files:read", label: "Read Slack files", effects: [read] }
+- { scope: "files:write", label: "Upload, edit and delete Slack files", effects: [write, delete] }
+- { scope: "admin.users:write", label: "Manage Slack users (admin)", effects: [read, write, identity-admin], broad: true }
+- { scope: "admin.conversations:write", label: "Manage Slack channels (admin)", effects: [write, delete], broad: true }
+
+# GitHub (OAuth app scopes)
+- { scope: "repo", label: "Full control of private GitHub repositories", effects: [read, write, delete], broad: true }
+- { scope: "public_repo", label: "Read and write public GitHub repositories", effects: [read, write] }
+- { scope: "delete_repo", label: "Delete GitHub repositories", effects: [delete], broad: true }
+- { scope: "workflow", label: "Update GitHub Actions workflows", effects: [write, code-exec] }
+- { scope: "admin:org", label: "Manage GitHub organisation, teams and membership", effects: [read, write, delete, identity-admin], broad: true }
+- { scope: "read:org", label: "Read GitHub organisation membership", effects: [read] }
+- { scope: "admin:repo_hook", label: "Manage GitHub repository webhooks", effects: [read, write, delete, external-send], broad: true }
+- { scope: "user", label: "Read and write GitHub profile data", effects: [read, write], data: [pii] }
+- { scope: "read:user", label: "Read GitHub profile data", effects: [read] }
+- { scope: "user:email", label: "Read GitHub users' email addresses", effects: [read], data: [pii] }
+- { scope: "gist", label: "Create GitHub gists", effects: [write] }
+- { scope: "notifications", label: "Read GitHub notifications", effects: [read] }
+
+# OpenID Connect
+- { scope: "openid", label: "Sign the user in (OpenID Connect)", effects: [] }
+- { scope: "email", label: "See the user's email address", effects: [read], data: [pii] }
+- { scope: "profile", label: "See the user's basic profile", effects: [read], data: [pii] }
+- { scope: "offline_access", label: "Keep access while the user is away (refresh token)", effects: [] }

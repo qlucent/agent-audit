@@ -41,3 +41,11 @@ fixtures:
   assert.match(r.stderr, /rules[\/]money-no-cap\.yaml/);
   assert.match(r.stderr, /pass/);
 });
+
+test('lexicon pattern that is not a valid regex fails with the filename', () => {
+  const d = tmp();
+  writeFileSync(join(d, 'lexicon', 'effects.yaml'), `- effect: money\n  name_patterns: ["refund("]\n`);
+  const r = compile(d);
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /lexicon[\/]effects\.yaml: \/0\/name_patterns/);
+});

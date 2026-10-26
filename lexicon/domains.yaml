@@ -1,0 +1,27 @@
+# Manifest purpose -> domain (spec decision 6: only the manifest sets the domain, never action names).
+# name_patterns are matched against agent.purpose. First matching entry wins, so order matters.
+
+- domain: helpdesk
+  name_patterns:
+    - "help ?desk|service ?desk|it support|customer support|support tickets?|ticketing"
+- domain: healthcare
+  name_patterns:
+    - "health ?care|healthcare|clinic|clinics|clinical|hospitals?|patients?|medical|pharmacy|telehealth"
+- domain: fintech
+  name_patterns:
+    - "fintech|bank|banking|lending|loans?|wallets?|brokerage|trading|card issuing|payments? (platform|app|provider)"
+- domain: finance-ops
+  name_patterns:
+    - "accounts payable|accounts receivable|invoic(e|es|ing)|bookkeeping|accounting|expense reports?|procurement|treasury|reconciliation"
+- domain: hr
+  name_patterns:
+    - "hr|human resources|payroll|recruit(ing|ment)|hiring|employee onboarding|benefits enrollment"
+- domain: ecommerce
+  name_patterns:
+    - "e ?commerce|online (store|shop)|storefront|shopping|retail|checkout"
+- domain: devops
+  name_patterns:
+    - "devops|ci ?cd|deployments?|infrastructure|kubernetes|k8s|sre|on ?call|incident response"
+- domain: it-admin
+  name_patterns:
+    - "it admin|it administration|sysadmin|identity (management|admin)|active directory|entra id|okta|user provisioning|endpoint management"
