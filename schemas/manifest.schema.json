@@ -38,6 +38,18 @@
         }
       }
     },
-    "out_of_scope": { "type": "array", "items": { "type": "string" } }
+    "out_of_scope": { "type": "array", "items": { "type": "string" } },
+    "actions": {
+      "description": "Action-name glob (* and ?, case-insensitive) -> declared effects and data classes. Declared lists replace the classifier's for matching actions.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "effects": { "type": "array", "items": { "enum": ["read", "write", "delete", "money", "external-send", "identity-admin", "code-exec", "bulk"] } },
+          "data": { "type": "array", "items": { "enum": ["pii", "phi", "financial-data", "credentials"] } }
+        }
+      }
+    }
   }
 }

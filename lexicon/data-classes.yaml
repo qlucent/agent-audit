@@ -16,6 +16,8 @@
     - "count|stats|statistics|metrics|weather|telemetry"
     # Reference data, not records: encounter types, patient education materials, code lists.
     - "types?|education|materials?|codes?|categories|catalog"
+    # Public price lists, not records.
+    - "prices?|pricing|costs?|formulary"
 
 # Generic words that are clinical only in an agent that already touches phi (FHIR Condition, Procedure, Coverage).
 - data: phi

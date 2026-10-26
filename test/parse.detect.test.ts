@@ -119,3 +119,12 @@ test('mcp-config by filename with 0 servers falls through to later formats', () 
 test('item with both inputSchema and input_schema is ambiguous: unrecognised', () => {
   assert.equal(fmt(j({ tools: [{ name: 't', inputSchema: {}, input_schema: {} }] })).unrecognised, true);
 });
+
+test('manifest actions: declared effects and data validate against the schema', () => {
+  const ok = parseInputs([{ name: 'm.json', text: j({ agent: { name: 'a' }, actions: { 'stripe_*': { effects: ['money', 'write'], data: ['financial-data'] } } }) }]);
+  assert.equal(ok.files[0]!.error, undefined);
+  assert.deepEqual({ ...ok.manifest?.actions?.['stripe_*'] }, { effects: ['money', 'write'], data: ['financial-data'] });
+  const bad = fmt(j({ agent: { name: 'a' }, actions: { x: { effects: ['launch-missiles'] } } }));
+  assert.match(bad.error!.message, /\/actions\/x\/effects\/0 must be one of/);
+  assert.match(fmt(j({ agent: { name: 'a' }, actions: { x: { risk: 'high' } } })).error!.message, /\/actions\/x\/risk is not allowed/);
+});

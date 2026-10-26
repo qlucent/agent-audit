@@ -33,11 +33,15 @@
     - "purchase|purchases|buy|checkout( sessions?)?|place orders?"
     - "(issue|add|apply|grant) (store |account )?credits?(?! cards?)"
     - "gift cards?|store credits?"
+    - "transaction sale|sale transactions?"
   not_patterns: &money_not
     - *read_verbs
     - "status|statuses|polic(y|ies)|history|rules?|reports?|methods?|terms|eligibility|summary|stats|scores?"
     - "reminders?|notifications?|notices?|receipts?|rates?|options?|explain|faqs?|help|templates?"
     - "branch|branches|repo|repos|git|commit"
+    # Things about payments, not payments: a payment link or page, a charge code. Recording a payment that was made
+    # offline is book-keeping; no money moves.
+    - "links?|pages?|themes?|codes?|record|recorded|offline"
 # Money instruments that only move money with an action verb.
 - effect: money
   verbs:
@@ -52,12 +56,32 @@
   nouns:
     - "draft orders?|orders?|invoices?|bills?"
   not_patterns: *money_not
-# Bookings on the user's behalf.
+# Bookings on the user's behalf. Not rooms or reservations: booking a meeting room moves no money.
 - effect: money
   verbs:
     - "book|purchase|buy|reserve"
   nouns:
-    - "flights?|hotels?|tickets?|trips?|fares?|seats?|rental cars?"
+    - "flights?|hotels?|tickets?|trips?|fares?|seats?|rental cars?|itinerar(y|ies)"
+  not_patterns: *money_not
+# A flight order is itself a booking, so creating one buys the ticket.
+- effect: money
+  verbs:
+    - "create|place|submit|book"
+  nouns:
+    - "flight orders?"
+  not_patterns: *money_not
+# Card transactions: voiding, reversing or settling one moves money. Not "create": in ledgers that only records an entry.
+- effect: money
+  verbs:
+    - "void|reverse|settle|refund|capture"
+  nouns:
+    - "transactions?|authori[sz]ations?"
+  not_patterns: *money_not
+- effect: money
+  verbs:
+    - "run|submit|approve|process"
+  nouns:
+    - "payrolls?|payroll runs?"
   not_patterns: *money_not
 
 - effect: external-send
@@ -80,12 +104,14 @@
   verbs:
     - &id_verbs "add|remove|invite|assign|unassign|grant|revoke|activate|deactivate|reactivate|suspend|unsuspend|block|unblock|enroll|unenroll|reset|clear|insert|create|delete|disable|enable|make|set|update|change|expire|freeze|unfreeze|lock|unlock|provision|deprovision|offboard|elevate|terminate"
   nouns:
-    - "users?|members?|memberships?|admins?|administrators?|roles?|permission sets?|permission schemes?|permissions?|privileges?|collaborators?|staff members?|staff|invitations?|client grants?|access polic(y|ies)|access|iam polic(y|ies)"
+    # sys_user: ServiceNow's user table (DELETE /api/now/table/sys_user/{sys_id}); systemuser: JumpCloud.
+    - "sys users?|system ?users?|users?|members?|memberships?|admins?|administrators?|(cluster ?)?role ?bindings?|role ?assignments?|roles?|permission sets?|permission schemes?|permissions?|privileges?|collaborators?|staff members?|staff|invitations?|client grants?|access polic(y|ies)|personal access tokens?|access|iam polic(y|ies)|service principals?|client scopes?"
   method_verbs: [POST, PUT, PATCH, DELETE]
   not_patterns: &id_not
     - *read_verbs
     - "rules?|password polic(y|ies)|requirements?|strength|complexity|login|logout|usergroups?|admin api"
-    - "stor(y|ies)|notes?|tokens?|comments?|tickets?|messages?|segments?|guides?|filters?"
+    # Tokens in general are not identity, but personal access, MFA and OTP tokens are.
+    - "stor(y|ies)|notes?|(?<!personal access |mfa |otp )tokens?|comments?|tickets?|messages?|segments?|guides?|filters?"
     - "preferences?|settings?|profiles?|photos?|avatars?|themes?|address(es)?|details?|info"
     - "cast|casting|scenarios?|role play"
 # Passwords and MFA (set/change/update count here).
@@ -100,8 +126,15 @@
   verbs:
     - "reset|clear|revoke|expire|enroll|unenroll|delete|remove|activate|deactivate|terminate"
   nouns:
-    - "factors?|authenticators?|authentication methods?|(user |users |sign in |signin |login |all )sessions?"
+    - "factors?|authenticators?|authentication methods?|mfa methods?|(user |users |sign in |signin |login |all )sessions?"
   method_verbs: [POST, DELETE]
+  not_patterns: *id_not
+# MFA/OTP tokens issued for a user (OneLogin, Okta admin APIs). Not "generate password", which is a utility.
+- effect: identity-admin
+  verbs:
+    - "generate|issue|reset"
+  nouns:
+    - "mfa tokens?|otp tokens?"
   not_patterns: *id_not
 - effect: identity-admin
   name_patterns:
@@ -113,16 +146,49 @@
     - "shell|bash|raw sql|repl|anonymous apex"
     - "(open|run|start) terminal|terminal (command|session|exec)s?"
     - "deploy(?! keys?)"
+    - "code interpreter|python interpreter"
   param_patterns:
     - "sql|raw sql|sql query|sql statement|shell command|cmd|bash command|python code|js code|javascript code|apex code"
   not_patterns: &code_not
     - *read_verbs
     - "status|history|logs?|keys?|readers?|summary|results?|aliases|runs"
+    # About code, not running it: translating or explaining a script, a shell's colour theme.
+    - "translate|explain|comments?|themes?|colou?rs?|lint|format|docs?|documentation"
+    # LangChain *QueryRun tools (ArxivQueryRun, WikipediaQueryRun) are search wrappers.
+    - "query run"
 - effect: code-exec
   verbs:
     - "run|exec|execute|eval|evaluate|trigger|dispatch|start|query"
   nouns:
-    - "sql|soql|queries|query|commands?|shell|scripts?|code|python|bash|javascript|js|apex|workflows?|pipelines?|gcloud|kubectl|expressions?"
+    - "sql|soql|queries|query|commands?|shell|script includes?|scripts?|code|python|bash|javascript|js|apex|workflows?|pipelines?|gcloud|kubectl|expressions?"
+  not_patterns: *code_not
+# Exec into a pod or container (kubectl exec, POST .../pods/{name}/exec), apply a manifest, rerun or play a CI job.
+- effect: code-exec
+  verbs:
+    - "exec"
+  nouns:
+    - "pods?|containers?"
+  not_patterns: *code_not
+- effect: code-exec
+  verbs:
+    - "apply"
+  nouns:
+    - "manifests?|helm charts?"
+  not_patterns: *code_not
+- effect: code-exec
+  verbs:
+    - "rerun|re run|retry|play"
+  nouns:
+    - "workflow jobs?|jobs?|pipelines?|workflows?|builds?"
+  not_patterns: *code_not
+# POST to a singular pipeline resource (GitLab POST /projects/{id}/pipeline) runs it. Not the plural collection:
+# POST /pipelines also creates CRM deal pipelines.
+- effect: code-exec
+  verbs:
+    - "run|trigger"
+  nouns:
+    - "pipeline"
+  method_verbs: [POST]
   not_patterns: *code_not
 
 # Export, list-all, unbounded reads.

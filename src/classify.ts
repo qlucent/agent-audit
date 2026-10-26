@@ -10,7 +10,7 @@ const METHOD: Record<string, Effect> = { GET: 'read', HEAD: 'read', POST: 'write
 /** `issue_refund`, `issueRefund`, `GET /v1/refunds/{id}` → "issue refund", "get v1 refunds id". */
 export const words = (s: string) =>
   s
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([A-Z])(?=[A-Z][a-z])/g, '$1 ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
@@ -42,24 +42,56 @@ const compile = (entries: LexEntry[] = []): Compiled[] =>
 
 type Span = [start: number, end: number, text: string];
 const spans = (re: RegExp, s: string): Span[] => [...s.matchAll(re)].map((m) => [m.index, m.index + m[0].length, m[0]]);
-const PREP = /^ (to|from|for|in|on|of|as|with)\b/;
+const PREP = / (to|from|for|in|on|of|as|with)\b/y;
+/** Phrases scanned for verb x noun are capped: no real action name is this long, and the scan is O(verbs x nouns). */
+const MAX_PHRASE = 512;
+const MAX_NAME = 2048;
 /**
  * Ruling R6: the noun must be the verb's object. Matches "verb … noun" with the noun last or followed only by a
  * to/from/for/in/on/of/as/with clause, or "noun … verb" with the verb last (staffMemberCreate, users … deactivate).
  */
 const verbNoun = (text: string, verbs: Span[], nouns: Span[]) => {
+  const after = (i: number) => ((PREP.lastIndex = i), i === text.length || PREP.test(text));
   for (const v of verbs)
     for (const n of nouns) {
-      if (v[1] <= n[0] && (n[1] === text.length || PREP.test(text.slice(n[1])))) return [v[2], n[2]] as const;
+      if (v[1] <= n[0] && after(n[1])) return [v[2], n[2]] as const;
       if (n[1] <= v[0] && v[1] === text.length) return [v[2], n[2]] as const;
     }
   return undefined;
 };
 
-/** Shell-style glob, case-insensitive. */
-const glob = (g: string) => new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i');
+/** Shell-style glob, case-insensitive. Over 256 chars (no real IAM action or tool name) it matches nothing: a 100k-char
+ * glob would exceed the regex size limit. */
+const glob = (g: string) => g.length > 256 ? /(?!)/ : new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i');
 
-export function classify(actions: Action[], data: GeneratedData = DEFAULT): Action[] {
+/**
+ * Manifest `actions:` (R7): declared effects/data replace the classifier's for every action whose name matches the glob
+ * (all matching globs are merged). An action with no effect, none declared, and not read-only by method or annotation
+ * is marked unclassified for review.
+ */
+export function classify(actions: Action[], data: GeneratedData = DEFAULT, manifest?: Manifest): Action[] {
+  const declared = Object.entries(manifest?.actions ?? {}).map(([g, d]) => ({ g, re: glob(g), ...d }));
+  return classifyLexicon(actions, data).map((a) => {
+    const hits = declared.filter((d) => d.re.test(a.name));
+    for (const [key, tags] of [['effects', hits.filter((d) => d.effects)], ['data', hits.filter((d) => d.data)]] as const) {
+      if (!tags.length) continue;
+      const list = [...new Set(tags.flatMap((d) => d[key]!))];
+      a = {
+        ...a,
+        [key]: list,
+        evidence: [
+          ...a.evidence.filter((e) => ALL.includes(e.effect as Effect) !== (key === 'effects')),
+          ...tags.flatMap((d) => d[key]!.map((t) => ({ effect: t, why: `declared in manifest actions."${d.g}"`, via: 'declared' as const }))),
+        ],
+      };
+    }
+    // ponytail: mcp-server effects come from mcp-audit (see classifyLexicon), so servers are never marked unclassified.
+    if (!a.effects.length && a.kind !== 'mcp-server' && !hits.some((d) => d.effects)) a.unclassified = true;
+    return a;
+  });
+}
+
+function classifyLexicon(actions: Action[], data: GeneratedData): Action[] {
   const lex = [...compile(data.lexicon.effects), ...compile(data.lexicon['data-classes'])];
   const dest = compile(data.lexicon.destinations);
   const scopes = new Map(data.scopes.map((s) => [s.scope, s]));
@@ -111,11 +143,12 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
     if (a.kind === 'tool' && a.label === a.name) a.label = humanise(a.name);
     // Endpoints: method, operationId and path (file extensions dropped) together, e.g. "post create user rest api 3 user".
     const path = a.name.replace(/^\S+\s/, '').replace(/\.(json|xml|ya?ml)(?=\/|$)/gi, '');
-    const name = a.kind === 'endpoint' ? words(`${a.method ?? ''} ${a.operationId ?? ''} ${path}`) : words(a.name);
+    const name = a.kind === 'endpoint' ? words(`${a.method ?? ''} ${a.operationId ?? ''} ${path}`.slice(0, MAX_NAME)) : words(a.name.slice(0, MAX_NAME));
     // Verb x noun phrases: the tool name; for endpoints the operationId and the path without {params} and $ref.
     const segs = path.split('/').filter((x) => x && !/^[{$]/.test(x)).map(words).filter(Boolean);
-    const phrases = a.kind === 'endpoint' ? [words(a.operationId ?? ''), segs.join(' ')].filter(Boolean) : [name];
-    const desc = a.description ? words(a.description) : '';
+    const phrases = (a.kind === 'endpoint' ? [words(a.operationId ?? ''), segs.join(' ')].filter(Boolean) : [name]).map((t) => t.slice(0, MAX_PHRASE));
+    // ponytail: only the first 10k chars of a description are read; real descriptions are far shorter.
+    const desc = a.description ? words(a.description.slice(0, 10_000)) : '';
     const leaves = a.params.map((p) => ({ p, w: words(p.name.split('.').at(-1)!) }));
 
     if (a.method && METHOD[a.method]) add(METHOD[a.method]!, `HTTP ${a.method}`, 'method');

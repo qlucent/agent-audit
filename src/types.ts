@@ -42,12 +42,14 @@ export interface Action {
   broad?: true;
   /** Index of the earlier action with the same name in another file. */
   duplicateOf?: number;
+  /** Not read-only by method or annotation, no effect found and none declared: listed for review (R7). */
+  unclassified?: true;
 }
 
 export interface Evidence {
   effect: Effect | DataClass;
   why: string;
-  via: 'name' | 'description' | 'param' | 'method' | 'annotation' | 'catalog';
+  via: 'name' | 'description' | 'param' | 'method' | 'annotation' | 'catalog' | 'declared';
 }
 
 /** Lexicon entry (lexicon/*.yaml). Patterns are regex sources, matched case-insensitively on words split from snake/camel/kebab. */
@@ -86,6 +88,8 @@ export interface Manifest {
   approvals?: string[];
   limits?: Record<string, { max_amount?: number; currency?: string; per_day?: number }>;
   out_of_scope?: string[];
+  /** Action-name glob -> declared effects/data; these replace the classifier's (R7). */
+  actions?: Record<string, { effects?: Effect[]; data?: DataClass[] }>;
 }
 
 export interface Rule {

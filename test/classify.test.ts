@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import raw from '../src/generated/data.json' with { type: 'json' };
 import { classify, detectDomain, words } from '../src/classify.ts';
 import { action } from '../src/parse/json.ts';
-import type { Action, GeneratedData } from '../src/types.ts';
+import type { Action, GeneratedData, Manifest } from '../src/types.ts';
 
 const data = raw as unknown as GeneratedData;
 const loc = { line: 1, column: 1, offset: 0, length: 0 };
@@ -236,4 +236,72 @@ test('context entries apply only when the batch already has that class', () => {
   const both = classify([t('get_procedure'), t('get_patient')], d);
   assert.deepEqual(both[0]!.data, ['phi']);
   assert.equal(both[0]!.evidence[0]!.why, 'name contains "procedure" (with phi elsewhere in this agent)');
+});
+
+test('full parse -> classify path finishes in under 200 ms on hostile 100k-char inputs', async () => {
+  const { parseInputs } = await import('../src/parse/index.ts');
+  const N = 100_000;
+  const hostile = {
+    caps: 'A'.repeat(N),
+    camel: 'aA'.repeat(N / 2),
+    capsRun: ('ABC' + 'D'.repeat(97) + 'ef').repeat(N / 102),
+    userCreate: 'user create '.repeat(N / 12),
+    createUser: 'create user '.repeat(N / 12),
+    snake: 'add_user_to_'.repeat(N / 12),
+    stars: '*a'.repeat(N / 2),
+  };
+  for (const [h, s] of Object.entries(hostile)) {
+    const tools = { tools: [{ name: s, description: s, input_schema: { type: 'object', properties: { [s]: { type: 'string' } } } }] };
+    const openapi = { openapi: '3.0.0', info: { title: 'x', version: '1' }, paths: { [`/${s}/x`]: { post: { operationId: s, description: s, responses: {} } } } };
+    const iam = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: [s, `iam:${s}`], Resource: '*' }] };
+    for (const [kind, doc] of Object.entries({ tool: tools, endpoint: openapi, iam })) {
+      const text = JSON.stringify(doc);
+      const t = performance.now();
+      const p = parseInputs([{ name: `${kind}.json`, text }]);
+      classify(p.actions, data);
+      const ms = performance.now() - t;
+      assert.ok(p.actions.length > 0, `${kind} ${h}: parsed no actions`);
+      assert.ok(ms < 200, `${kind} ${h}: ${ms.toFixed(0)} ms`);
+    }
+  }
+});
+
+test('words() splits caps runs the same way as before, linearly', () => {
+  assert.equal(words('HTTPServer'), 'http server');
+  assert.equal(words('PythonAstREPLTool'), 'python ast repl tool');
+  assert.equal(words('getHTTPResponseCode'), 'get http response code');
+  assert.equal(words('IAMRoleARNs'), 'iam role ar ns');
+  assert.equal(words('AAaBBbCC'), 'a aa b bb cc');
+});
+
+test('manifest actions: declared effects and data replace the classifier (R7)', () => {
+  const m = { agent: { name: 'a' }, actions: { 'stripe_*': { effects: ['read'] }, 'POST /v1/*': { data: ['pii'] }, frobnicate: { effects: ['code-exec'] } } } as Manifest;
+  const t = (name: string, extra: Partial<Action> = {}) => action('t', loc, { kind: 'tool', name, ...extra });
+  const [s, ep, f, other] = classify(
+    [t('Stripe_Create_Refund', { params: [{ name: 'patient_id' }] }), t('POST /v1/refunds', { kind: 'endpoint', method: 'POST' }), t('frobnicate'), t('create_refund')],
+    data,
+    m,
+  );
+  // Effects replaced, data kept (only effects declared); glob is case-insensitive.
+  assert.deepEqual([s!.effects, s!.data], [['read'], ['phi']]);
+  assert.ok(s!.evidence.some((e) => e.effect === 'read' && e.via === 'declared' && /stripe_\*/.test(e.why)));
+  assert.ok(!s!.evidence.some((e) => e.effect === 'money'));
+  assert.ok(s!.evidence.some((e) => e.effect === 'phi' && e.via === 'param'));
+  // Data replaced, effects kept.
+  assert.deepEqual([ep!.effects.includes('money'), ep!.data], [true, ['pii']]);
+  assert.deepEqual(f!.effects, ['code-exec']);
+  assert.equal(f!.unclassified, undefined);
+  has(other!, 'money');
+});
+
+test('unclassified: not read-only by method or annotation and no effect', () => {
+  assert.equal(tool('frobnicate').unclassified, true);
+  assert.equal(tool('get_order').unclassified, undefined);
+  assert.equal(tool('frobnicate', [], { annotations: { readOnlyHint: true } }).unclassified, undefined);
+  assert.equal(one({ name: 'GET /frob', kind: 'endpoint', method: 'GET' }).unclassified, undefined);
+  assert.equal(one({ name: 'POST /frob', kind: 'endpoint', method: 'POST' }).unclassified, undefined);
+  assert.equal(one({ name: 'svc:Frobnicate', kind: 'iam' }).unclassified, true);
+  // Declared empty effects are a decision, not a gap.
+  const m = { agent: { name: 'a' }, actions: { frobnicate: { effects: [] } } } as Manifest;
+  assert.equal(classify([action('t', loc, { kind: 'tool', name: 'frobnicate' })], data, m)[0]!.unclassified, undefined);
 });

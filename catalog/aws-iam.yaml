@@ -74,6 +74,7 @@
 # Code execution
 - { pattern: "ssm:SendCommand", label: "Run commands on EC2 instances", effects: [code-exec] }
 - { pattern: "ssm:StartSession", label: "Open a shell on EC2 instances", effects: [code-exec] }
+- { pattern: "ssm:StartAutomationExecution", label: "Run SSM Automation runbooks (can run scripts)", effects: [code-exec] }
 - { pattern: "lambda:CreateFunction", label: "Create Lambda functions", effects: [write, code-exec] }
 - { pattern: "lambda:UpdateFunctionCode", label: "Replace Lambda function code", effects: [write, code-exec] }
 - { pattern: "lambda:InvokeFunction", label: "Invoke Lambda functions", effects: [write] }

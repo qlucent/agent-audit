@@ -12,7 +12,7 @@ interface Case {
   expect: { effects: string[]; data: string[] }; forbid?: string[];
 }
 const cases = corpus as Case[];
-// Classes that feed high/critical rules: no false positives, at most 2% false negatives.
+// Classes that feed high/critical rules: no false positives.
 const KEY = ['money', 'identity-admin', 'code-exec', 'phi'];
 const loc = { line: 1, column: 1, offset: 0, length: 0 };
 const actions = classify(
@@ -47,9 +47,9 @@ function stats(idx: number[]) {
   return { ok: idx.filter(exact).length, n: idx.length, per };
 }
 const all = cases.map((_, i) => i);
-for (const set of [undefined, ...new Set(cases.map((c) => c.set).filter(Boolean))]) {
-  const s = stats(set ? all.filter((i) => cases[i]!.set === set) : all);
-  console.log(`corpus ${set ?? 'all'}: exact ${s.ok}/${s.n} = ${((s.ok / s.n) * 100).toFixed(1)}%`);
+for (const set of ['all', 'base', ...new Set(cases.map((c) => c.set).filter(Boolean))]) {
+  const s = stats(set === 'all' ? all : all.filter((i) => (cases[i]!.set ?? 'base') === set));
+  console.log(`corpus ${set}: exact ${s.ok}/${s.n} = ${((s.ok / s.n) * 100).toFixed(1)}%`);
   for (const k of KEY) console.log(`  ${k}: positives ${s.per[k]!.pos}, FP ${s.per[k]!.fp.length} [${s.per[k]!.fp}], FN ${s.per[k]!.fn.length} [${s.per[k]!.fn}]`);
 }
 
@@ -61,17 +61,30 @@ test('corpus: no false positives on forbidden classes', () => {
   assert.deepEqual(bad, []);
 });
 
-test('corpus: key classes have zero false positives and at most 2% false negatives', () => {
+// Held-out sets that were not tuned against: misses are accepted (R8) but surfaced, so FN is capped at 10% per class
+// and exact match is printed, not gated. Every other subset is tuned: FN <= 2% per class, exact match >= 97%.
+const UNTUNED = new Set(['heldout-2']);
+const tuned = all.filter((i) => !UNTUNED.has(cases[i]!.set ?? ''));
+const untuned = all.filter((i) => UNTUNED.has(cases[i]!.set ?? ''));
+
+test('corpus: key classes have zero false positives on every subset', () => {
   const { per } = stats(all);
-  for (const k of KEY) {
-    assert.deepEqual(per[k]!.fp, [], `${k} false positives`);
-    assert.ok(per[k]!.fn.length <= Math.floor(per[k]!.pos * 0.02), `${k}: ${per[k]!.fn.length} false negatives of ${per[k]!.pos} [${per[k]!.fn}]`);
+  for (const k of KEY) assert.deepEqual(per[k]!.fp, [], `${k} false positives`);
+});
+
+test('corpus: key-class false negatives at most 2% on tuned subsets, 10% on held-out subsets', () => {
+  for (const [idx, max] of [[tuned, 0.02], ...[...UNTUNED].map((u) => [all.filter((i) => cases[i]!.set === u), 0.1] as const)] as const) {
+    const { per } = stats(idx);
+    for (const k of KEY)
+      assert.ok(per[k]!.fn.length <= Math.floor(per[k]!.pos * max), `${k}: ${per[k]!.fn.length} false negatives of ${per[k]!.pos} (max ${max * 100}%) [${per[k]!.fn}]`);
   }
 });
 
-test('corpus: exact-match accuracy >= 97%', () => {
-  const misses = all.filter((i) => !exact(i)).map((i) => `[${cases[i]!.src}] ${cases[i]!.name}: expected {${want(cases[i]!)}} got ${show(i)}`);
+test('corpus: exact-match accuracy >= 97% on tuned subsets', () => {
+  const misses = tuned.filter((i) => !exact(i)).map((i) => `[${cases[i]!.src}] ${cases[i]!.name}: expected {${want(cases[i]!)}} got ${show(i)}`);
   for (const m of misses) console.log(`  miss ${m}`);
-  const acc = (cases.length - misses.length) / cases.length;
+  const u = stats(untuned);
+  console.log(`held-out (ungated) exact ${u.ok}/${u.n}`);
+  const acc = (tuned.length - misses.length) / tuned.length;
   assert.ok(acc >= 0.97, `accuracy ${(acc * 100).toFixed(1)}% < 97%\n${misses.join('\n')}`);
 });
