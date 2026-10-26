@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Qlucent agent manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["agent"],
+  "properties": {
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string" },
+        "domain": { "enum": ["fintech", "healthcare", "helpdesk", "hr", "finance-ops", "ecommerce", "devops", "it-admin", "general"] },
+        "acts_for": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["allow"],
+        "properties": { "allow": { "type": "array", "items": { "type": "string", "minLength": 1 } } }
+      }
+    },
+    "approvals": { "type": "array", "items": { "type": "string" } },
+    "limits": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "max_amount": { "type": "number" },
+          "currency": { "type": "string" },
+          "per_day": { "type": "number" }
+        }
+      }
+    },
+    "out_of_scope": { "type": "array", "items": { "type": "string" } }
+  }
+}

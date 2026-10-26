@@ -1,0 +1,16 @@
+node_modules/
+dist/
+src/generated/
+*.tgz
+.claude/
+.superpowers/
+docs/
+.DS_Store
+.idea/
+
+# Internal docs (CLAUDE.md, plans, notes) never go to git. Only these Markdown files are public.
+*.md
+!README.md
+!CONTRIBUTING.md
+!SECURITY.md
+!.github/**/*.md

@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "agent-audit lexicon file",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name_patterns"],
+    "properties": {
+      "effect": { "enum": ["read", "write", "delete", "money", "external-send", "identity-admin", "code-exec", "bulk"] },
+      "data": { "enum": ["pii", "phi", "financial-data", "credentials"] },
+      "domain": { "type": "string", "minLength": 1 },
+      "name_patterns": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+      "description_patterns": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+      "not_patterns": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+    }
+  }
+}
