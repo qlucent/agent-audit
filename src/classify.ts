@@ -128,7 +128,7 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
         const n = e.name?.exec(name);
         if (n) add(tag, `name contains "${n[0]}"${also}`, 'name');
         if (e.verb && e.noun) {
-          const vn = phrases.map((t) => verbNoun(t, spans(e.verb, t), spans(e.noun!, t))).find(Boolean);
+          const vn = phrases.map((t) => verbNoun(t, spans(e.verb!, t), spans(e.noun!, t))).find(Boolean);
           if (vn) add(tag, `name contains "${vn[0]}" + "${vn[1]}"${also}`, 'name');
           else if (a.kind === 'endpoint' && a.method && e.methods.includes(a.method as never)) {
             // The method is the verb; the noun is the last resource segment (a trailing action segment is skipped).
