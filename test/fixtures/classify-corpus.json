@@ -367,5 +367,13 @@
   { "set": "heldout-1", "src": "AWS", "name": "iam:CreateServiceLinkedRole", "kind": "iam", "expect": {"effects": ["write", "identity-admin"], "data": []} },
   { "set": "heldout-1", "src": "AWS", "name": "logs:GetLogEvents", "kind": "iam", "expect": {"effects": ["read"], "data": []} },
   { "set": "heldout-1", "src": "AWS", "name": "glue:*", "kind": "iam", "expect": {"effects": ["read", "write", "delete"], "data": []} },
-  { "set": "heldout-1", "src": "AWS", "name": "ec2:AuthorizeSecurityGroupIngress", "kind": "iam", "expect": {"effects": ["write"], "data": []} }
+  { "set": "heldout-1", "src": "AWS", "name": "ec2:AuthorizeSecurityGroupIngress", "kind": "iam", "expect": {"effects": ["write"], "data": []} },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "create_role_play_scenario", "kind": "tool", "expect": {"effects": ["write"], "data": []}, "forbid": ["identity-admin"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "create_member_card", "kind": "tool", "expect": {"effects": ["write"], "data": []}, "forbid": ["identity-admin"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "remove_role_from_cast", "kind": "tool", "expect": {"effects": ["delete"], "data": []}, "forbid": ["identity-admin"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "set_admin_mode", "kind": "tool", "expect": {"effects": ["write"], "data": []}, "forbid": ["identity-admin"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "reset_password_form_text", "kind": "tool", "expect": {"effects": [], "data": []}, "forbid": ["identity-admin"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "complete_order_fulfillment", "kind": "tool", "expect": {"effects": [], "data": []}, "forbid": ["money"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "transfer_create_draft", "kind": "tool", "expect": {"effects": ["write"], "data": []}, "forbid": ["money"] },
+  { "set": "r6-lookalikes", "src": "lookalike", "name": "add_members_to_chat", "kind": "tool", "params": ["chat_id", "user_ids"], "expect": {"effects": ["write", "identity-admin"], "data": []} }
 ]

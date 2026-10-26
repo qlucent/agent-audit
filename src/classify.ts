@@ -22,7 +22,7 @@ const wholeRe = (ps?: string[]) => any(ps, (p) => `^(?:${p})$`);
 
 interface Compiled {
   tag: Effect | DataClass | Domain | undefined;
-  name?: RegExp; desc?: RegExp; param?: RegExp; not?: RegExp; verb?: RegExp; noun?: RegExp;
+  name?: RegExp; desc?: RegExp; param?: RegExp; not?: RegExp; verb?: RegExp; noun?: RegExp; nounWhole?: RegExp; verbFirst?: RegExp;
   methods: string[]; context?: DataClass;
 }
 const compile = (entries: LexEntry[] = []): Compiled[] =>
@@ -34,15 +34,25 @@ const compile = (entries: LexEntry[] = []): Compiled[] =>
     not: wordRe(e.not_patterns),
     verb: e.verbs && new RegExp(wordRe(e.verbs)!.source, 'gi'),
     noun: e.nouns && new RegExp(wordRe(e.nouns)!.source, 'gi'),
+    nounWhole: wholeRe(e.nouns),
+    verbFirst: any(e.verbs, (p) => `^(?:${p})\\b`),
     methods: e.method_verbs ?? [],
     context: e.context,
   }));
 
 type Span = [start: number, end: number, text: string];
 const spans = (re: RegExp, s: string): Span[] => [...s.matchAll(re)].map((m) => [m.index, m.index + m[0].length, m[0]]);
-/** First verb and noun hit that are separate words (either order). */
-const verbNoun = (verbs: Span[], nouns: Span[]) => {
-  for (const v of verbs) for (const n of nouns) if (v[1] <= n[0] || n[1] <= v[0]) return [v[2], n[2]] as const;
+const PREP = /^ (to|from|for|in|on|of|as|with)\b/;
+/**
+ * Ruling R6: the noun must be the verb's object. Matches "verb … noun" with the noun last or followed only by a
+ * to/from/for/in/on/of/as/with clause, or "noun … verb" with the verb last (staffMemberCreate, users … deactivate).
+ */
+const verbNoun = (text: string, verbs: Span[], nouns: Span[]) => {
+  for (const v of verbs)
+    for (const n of nouns) {
+      if (v[1] <= n[0] && (n[1] === text.length || PREP.test(text.slice(n[1])))) return [v[2], n[2]] as const;
+      if (n[1] <= v[0] && v[1] === text.length) return [v[2], n[2]] as const;
+    }
   return undefined;
 };
 
@@ -102,6 +112,9 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
     // Endpoints: method, operationId and path (file extensions dropped) together, e.g. "post create user rest api 3 user".
     const path = a.name.replace(/^\S+\s/, '').replace(/\.(json|xml|ya?ml)(?=\/|$)/gi, '');
     const name = a.kind === 'endpoint' ? words(`${a.method ?? ''} ${a.operationId ?? ''} ${path}`) : words(a.name);
+    // Verb x noun phrases: the tool name; for endpoints the operationId and the path without {params} and $ref.
+    const segs = path.split('/').filter((x) => x && !/^[{$]/.test(x)).map(words).filter(Boolean);
+    const phrases = a.kind === 'endpoint' ? [words(a.operationId ?? ''), segs.join(' ')].filter(Boolean) : [name];
     const desc = a.description ? words(a.description) : '';
     const leaves = a.params.map((p) => ({ p, w: words(p.name.split('.').at(-1)!) }));
 
@@ -115,11 +128,13 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT): Acti
         const n = e.name?.exec(name);
         if (n) add(tag, `name contains "${n[0]}"${also}`, 'name');
         if (e.verb && e.noun) {
-          const nouns = spans(e.noun, name);
-          const byMethod = a.kind === 'endpoint' && a.method && e.methods.includes(a.method as never);
-          const vn = verbNoun(spans(e.verb, name), nouns);
+          const vn = phrases.map((t) => verbNoun(t, spans(e.verb, t), spans(e.noun!, t))).find(Boolean);
           if (vn) add(tag, `name contains "${vn[0]}" + "${vn[1]}"${also}`, 'name');
-          else if (byMethod && nouns[0]) add(tag, `HTTP ${a.method} on "${nouns[0][2]}"${also}`, 'method');
+          else if (a.kind === 'endpoint' && a.method && e.methods.includes(a.method as never)) {
+            // The method is the verb; the noun is the last resource segment (a trailing action segment is skipped).
+            const res = segs.length > 1 && e.verbFirst!.test(segs.at(-1)!) ? segs.at(-2) : segs.at(-1);
+            if (res && e.nounWhole!.test(res)) add(tag, `HTTP ${a.method} on "${res}"${also}`, 'method');
+          }
         }
         const d = desc && !e.not?.test(desc) ? e.desc?.exec(desc) : null;
         if (d) add(tag, `description mentions "${d[0]}"`, 'description');

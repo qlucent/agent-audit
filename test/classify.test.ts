@@ -202,12 +202,22 @@ test('verbs x nouns entries: either order, separate words, method verbs, not_pat
   assert.deepEqual(c('add_user_note').effects, []);
   assert.deepEqual(c('add_item').effects, []);
   assert.deepEqual(c('users').effects, []);
+  // R6: the noun must be the verb's object: last word, or followed by a to/from/for/... clause; or noun ... verb-last.
+  assert.deepEqual(c('add_user_note_x').effects, []);
+  assert.deepEqual(c('add_user_score').effects, []);
+  assert.deepEqual(c('add_user_to_group').effects, ['identity-admin']);
+  assert.deepEqual(c('add_user_as_owner').effects, ['identity-admin']);
+  assert.deepEqual(c('user_add_later').effects, []);
   // "grant" inside the noun "client grant" is not also the verb.
   assert.deepEqual(c('client_grant').effects, []);
   assert.deepEqual(c('add_client_grant').effects, ['identity-admin']);
   const ep = (method: string, path: string) => c(`${method} ${path}`, { kind: 'endpoint', method });
   assert.deepEqual(ep('POST', '/api/v2/users.json').effects, ['write', 'identity-admin']);
   assert.deepEqual(ep('GET', '/api/v2/users.json').effects, ['read']);
+  // Endpoints: the method is the verb and the last resource segment the noun ({params}, $ref and a trailing action skipped).
+  assert.deepEqual(ep('POST', '/groups/{id}/users/$ref').effects, ['write', 'identity-admin']);
+  assert.deepEqual(ep('POST', '/users/{id}/add').effects, ['write', 'identity-admin']);
+  assert.deepEqual(ep('POST', '/users/{id}/avatar').effects, ['write']);
 });
 
 test('context entries apply only when the batch already has that class', () => {

@@ -2,9 +2,11 @@
 # Names are split into lowercase words first: issue_refund, issueRefund, issue-refund -> "issue refund".
 # Endpoints are matched as "<method> <operationId> <path words>" with file extensions dropped,
 # e.g. "post create user rest api 3 user".
-# A verbs + nouns entry fires when the name has a verb and a noun as separate words, in either order, with anything
-# between: "add_user_to_group", "users_insert", "staffMemberCreate", "set_iam_policy". Prefer extending the sets over
-# adding phrases. not_patterns cancel the whole entry for a name.
+# A verbs + nouns entry fires only when the noun is the verb's object (ruling R6): "verb … noun" with the noun last
+# or followed only by a to/from/for/in/on/of/as/with clause ("add_user_to_group", "set_iam_policy"), or "noun … verb"
+# with the verb last ("staffMemberCreate", "users_insert"). "create_member_card" and "set_admin_mode" do not match.
+# Endpoints: operationId and path words, or the method as verb with the last resource segment as noun.
+# List longer alternatives first ("permission sets?" before "permissions?"). not_patterns cancel the whole entry.
 # Keep patterns tight: a false positive costs more than a miss. Keep them linear: no repeated groups
 # (test/classify.test.ts times every pattern on 10k-char input). Regressions: test/fixtures/classify-corpus.json.
 
@@ -41,14 +43,14 @@
   verbs:
     - "create|issue|initiate|make|send|submit|post|execute|confirm|capture|authori[sz]e|accept|complete|finali[sz]e|settle"
   nouns:
-    - "transfers?|credit notes?|credit memos?|disputes?|chargebacks?|remittances?"
+    - "transfer reversals?|transfers?|credit notes?|credit memos?|dispute claims?|disputes?|chargebacks?|remittances?"
   not_patterns: *money_not
 # Orders and invoices commit money when captured, completed or paid (creating one does not).
 - effect: money
   verbs:
     - "capture|complete|finali[sz]e|place|pay|settle"
   nouns:
-    - "orders?|draft orders?|invoices?|bills?"
+    - "draft orders?|orders?|invoices?|bills?"
   not_patterns: *money_not
 # Bookings on the user's behalf.
 - effect: money
@@ -78,13 +80,14 @@
   verbs:
     - &id_verbs "add|remove|invite|assign|unassign|grant|revoke|activate|deactivate|reactivate|suspend|unsuspend|block|unblock|enroll|unenroll|reset|clear|insert|create|delete|disable|enable|make|set|update|change|expire|freeze|unfreeze|lock|unlock|provision|deprovision|offboard|elevate|terminate"
   nouns:
-    - "users?|members?|memberships?|admins?|administrators?|roles?|permissions?|permission sets?|permission schemes?|privileges?|collaborators?|staff|staff members?|invitations?|client grants?|access|iam polic(y|ies)|access polic(y|ies)"
+    - "users?|members?|memberships?|admins?|administrators?|roles?|permission sets?|permission schemes?|permissions?|privileges?|collaborators?|staff members?|staff|invitations?|client grants?|access polic(y|ies)|access|iam polic(y|ies)"
   method_verbs: [POST, PUT, PATCH, DELETE]
   not_patterns: &id_not
     - *read_verbs
     - "rules?|password polic(y|ies)|requirements?|strength|complexity|login|logout|usergroups?|admin api"
     - "stor(y|ies)|notes?|tokens?|comments?|tickets?|messages?|segments?|guides?|filters?"
     - "preferences?|settings?|profiles?|photos?|avatars?|themes?|address(es)?|details?|info"
+    - "cast|casting|scenarios?|role play"
 # Passwords and MFA (set/change/update count here).
 - effect: identity-admin
   verbs:
