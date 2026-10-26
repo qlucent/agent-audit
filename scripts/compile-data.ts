@@ -51,7 +51,7 @@ for (const name of yamls('lexicon')) {
   const d = load(file);
   if (d === undefined || !check('lexicon', file, d)) continue;
   d.forEach((entry: Record<string, unknown>, i: number) => {
-    for (const k of ['name_patterns', 'description_patterns', 'param_patterns', 'not_patterns'])
+    for (const k of ['name_patterns', 'description_patterns', 'param_patterns', 'not_patterns', 'verbs', 'nouns'])
       for (const p of (entry[k] as string[] | undefined) ?? []) {
         try {
           new RegExp(p);

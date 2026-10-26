@@ -78,9 +78,12 @@
 - { pattern: "lambda:UpdateFunctionCode", label: "Replace Lambda function code", effects: [write, code-exec] }
 - { pattern: "lambda:InvokeFunction", label: "Invoke Lambda functions", effects: [write] }
 - { pattern: "ec2:RunInstances", label: "Launch EC2 instances", effects: [write] }
+- { pattern: "ec2:AuthorizeSecurityGroup*", label: "Open security group rules", effects: [write] }
+- { pattern: "ec2:RevokeSecurityGroup*", label: "Remove security group rules", effects: [write] }
 - { pattern: "ecs:RunTask", label: "Run ECS tasks", effects: [write, code-exec] }
 
 # Sending
+- { pattern: "ses:Send*", label: "Send email with SES", effects: [external-send] }
 - { pattern: "ses:SendEmail", label: "Send email with SES", effects: [external-send] }
 - { pattern: "ses:SendRawEmail", label: "Send raw email with SES", effects: [external-send] }
 - { pattern: "sns:Publish", label: "Publish SNS messages (SMS, email, HTTP)", effects: [external-send] }

@@ -1,20 +1,129 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "agent-audit lexicon file",
-  "description": "Patterns are regex sources, matched case-insensitively on words split from snake_case, camelCase and kebab-case. name/description patterns match on word boundaries; param patterns match a parameter's whole leaf name.",
+  "description": "Patterns are regex sources, matched case-insensitively on words split from snake_case, camelCase and kebab-case. name/description patterns match on word boundaries; param patterns match a parameter's whole leaf name. A verbs+nouns entry matches when the name contains a verb and a noun (separate words, either order, anything between); for endpoints the HTTP methods in method_verbs also count as the verb. An entry with context only applies when another action in the same batch already has that class.",
   "type": "array",
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "anyOf": [{ "required": ["name_patterns"] }, { "required": ["param_patterns"] }],
+    "anyOf": [
+      {
+        "required": [
+          "name_patterns"
+        ]
+      },
+      {
+        "required": [
+          "param_patterns"
+        ]
+      },
+      {
+        "required": [
+          "verbs",
+          "nouns"
+        ]
+      }
+    ],
     "properties": {
-      "effect": { "enum": ["read", "write", "delete", "money", "external-send", "identity-admin", "code-exec", "bulk"] },
-      "data": { "enum": ["pii", "phi", "financial-data", "credentials"] },
-      "domain": { "enum": ["fintech", "healthcare", "helpdesk", "hr", "finance-ops", "ecommerce", "devops", "it-admin", "general"] },
-      "name_patterns": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-      "description_patterns": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-      "param_patterns": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-      "not_patterns": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      "effect": {
+        "enum": [
+          "read",
+          "write",
+          "delete",
+          "money",
+          "external-send",
+          "identity-admin",
+          "code-exec",
+          "bulk"
+        ]
+      },
+      "data": {
+        "enum": [
+          "pii",
+          "phi",
+          "financial-data",
+          "credentials"
+        ]
+      },
+      "domain": {
+        "enum": [
+          "fintech",
+          "healthcare",
+          "helpdesk",
+          "hr",
+          "finance-ops",
+          "ecommerce",
+          "devops",
+          "it-admin",
+          "general"
+        ]
+      },
+      "name_patterns": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description_patterns": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "param_patterns": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "not_patterns": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "verbs": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "nouns": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "method_verbs": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "enum": [
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        }
+      },
+      "context": {
+        "enum": [
+          "pii",
+          "phi",
+          "financial-data",
+          "credentials"
+        ]
+      }
     }
   }
 }

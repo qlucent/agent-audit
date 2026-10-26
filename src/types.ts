@@ -60,6 +60,13 @@ export interface LexEntry {
   description_patterns?: string[];
   /** Whole-name match on a parameter's leaf name. */
   param_patterns?: string[];
+  /** Composite match: a verb and a noun as separate words, either order, anything between. */
+  verbs?: string[];
+  nouns?: string[];
+  /** For endpoints, these HTTP methods also count as the verb. */
+  method_verbs?: ('POST' | 'PUT' | 'PATCH' | 'DELETE')[];
+  /** Applies only when another action in the batch already has this data class (e.g. FHIR Condition needs phi). */
+  context?: DataClass;
   /** Any match on the name (or description, for description hits) cancels the entry. */
   not_patterns?: string[];
 }

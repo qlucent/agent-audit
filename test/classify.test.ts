@@ -167,7 +167,7 @@ test('every lexicon pattern runs in under 50 ms on a 10k-char input', () => {
   ];
   for (const [file, entries] of Object.entries(data.lexicon)) {
     for (const e of entries) {
-      for (const k of ['name_patterns', 'description_patterns', 'param_patterns', 'not_patterns'] as const) {
+      for (const k of ['name_patterns', 'description_patterns', 'param_patterns', 'not_patterns', 'verbs', 'nouns'] as const) {
         for (const p of e[k] ?? []) {
           // Linear by construction: a quantifier may follow a group only as `?` (at most once).
           assert.doesNotMatch(p, /\)[*+{]/, `${file} ${k} /${p}/ repeats a group`);
@@ -184,4 +184,46 @@ test('every lexicon pattern runs in under 50 ms on a 10k-char input', () => {
       }
     }
   }
+});
+
+test('verbs x nouns entries: either order, separate words, method verbs, not_patterns', () => {
+  const d: GeneratedData = {
+    ...data,
+    lexicon: {
+      effects: [{ effect: 'identity-admin', verbs: ['add|grant'], nouns: ['users?|client grants?'], method_verbs: ['POST'], not_patterns: ['notes?'] }],
+      'data-classes': [],
+    },
+  };
+  const c = (name: string, extra: Partial<Action> = {}) => classify([action('t', loc, { kind: 'tool', name, ...extra })], d)[0]!;
+  assert.deepEqual(c('add_user').effects, ['identity-admin']);
+  assert.match(c('add_user').evidence[0]!.why, /"add" \+ "user"/);
+  assert.deepEqual(c('users_bulk_add').effects, ['identity-admin']);
+  assert.deepEqual(c('add_guest_to_portal_users').effects, ['identity-admin']);
+  assert.deepEqual(c('add_user_note').effects, []);
+  assert.deepEqual(c('add_item').effects, []);
+  assert.deepEqual(c('users').effects, []);
+  // "grant" inside the noun "client grant" is not also the verb.
+  assert.deepEqual(c('client_grant').effects, []);
+  assert.deepEqual(c('add_client_grant').effects, ['identity-admin']);
+  const ep = (method: string, path: string) => c(`${method} ${path}`, { kind: 'endpoint', method });
+  assert.deepEqual(ep('POST', '/api/v2/users.json').effects, ['write', 'identity-admin']);
+  assert.deepEqual(ep('GET', '/api/v2/users.json').effects, ['read']);
+});
+
+test('context entries apply only when the batch already has that class', () => {
+  const d: GeneratedData = {
+    ...data,
+    lexicon: {
+      effects: [],
+      'data-classes': [
+        { data: 'phi', name_patterns: ['patients?'] },
+        { data: 'phi', name_patterns: ['procedures?'], context: 'phi' },
+      ],
+    },
+  };
+  const t = (name: string) => action('t', loc, { kind: 'tool', name });
+  assert.deepEqual(classify([t('get_procedure')], d)[0]!.data, []);
+  const both = classify([t('get_procedure'), t('get_patient')], d);
+  assert.deepEqual(both[0]!.data, ['phi']);
+  assert.equal(both[0]!.evidence[0]!.why, 'name contains "procedure" (with phi elsewhere in this agent)');
 });

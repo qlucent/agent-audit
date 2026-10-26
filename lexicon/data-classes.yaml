@@ -14,6 +14,16 @@
     - "protected health information|medical records?|patient records?"
   not_patterns:
     - "count|stats|statistics|metrics|weather|telemetry"
+    # Reference data, not records: encounter types, patient education materials, code lists.
+    - "types?|education|materials?|codes?|categories|catalog"
+
+# Generic words that are clinical only in an agent that already touches phi (FHIR Condition, Procedure, Coverage).
+- data: phi
+  context: phi
+  name_patterns:
+    - "conditions?|procedures?|coverages?|explanation of benefits"
+  not_patterns:
+    - "count|stats|statistics|metrics|weather|telemetry|types?|education|materials?|codes?|categories|catalog|stored|terms"
 
 - data: pii
   name_patterns:
@@ -28,11 +38,13 @@
 - data: financial-data
   name_patterns:
     - "bank accounts?|account balances?|balances?|(bank|card|account) statements?|card numbers?|credit cards?|iban|payroll"
+    - "transactions?|pay stubs?|payslips?|pay slips?"
   param_patterns:
     - "card number|credit card number|iban|account number|bank account number|routing number|sort code|cvv|cvc|swift code|bic"
   not_patterns:
     - "count|stats|statistics|metrics"
     - "leave|pto|vacation|sick|load|token|tokens"
+    - "begin|commit|rollback|start|database|db"
 
 - data: credentials
   name_patterns:
@@ -40,4 +52,4 @@
   param_patterns:
     - "password|passwd|new password|old password|current password|api key|secret|client secret|private key|access token|refresh token|auth token|bearer token|secret key|access key"
   not_patterns:
-    - "rules?|polic(y|ies)|requirements?|strength|complexity|expire|expiry|expiration|length|reset|change|forgot|rotate|rotation"
+    - "rules?|polic(y|ies)|requirements?|strength|complexity|expire|expiry|expiration|length|reset|change|forgot"
