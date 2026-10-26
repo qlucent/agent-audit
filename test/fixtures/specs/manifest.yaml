@@ -1,0 +1,12 @@
+agent:
+  name: Support refund bot
+  purpose: L1 customer support; issue small refunds
+  domain: fintech
+  acts_for: [customer, support-agent]
+roles:
+  customer: { allow: [read:own-orders, refund:<=50] }
+  support-agent: { allow: ["read:*", "refund:<=200", "email:send"] }
+approvals: [issue_refund, delete_*]
+limits:
+  issue_refund: { max_amount: 200, currency: USD, per_day: 20 }
+out_of_scope: [identity-admin, delete]

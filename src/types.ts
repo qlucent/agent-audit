@@ -28,6 +28,13 @@ export interface Action {
   description?: string;
   annotations?: Record<string, boolean>;
   method?: string;
+  /** OpenAPI operationId. */
+  operationId?: string;
+  /** OAuth scopes an OpenAPI operation requires. */
+  scopes?: string[];
+  /** IAM statement Resource (normalised to a list) and Condition. */
+  resource?: string[];
+  condition?: Record<string, unknown>;
   effects: Effect[];
   data: DataClass[];
   evidence: { effect: Effect | DataClass; why: string }[];

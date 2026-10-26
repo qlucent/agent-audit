@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: Example Payments API
+  version: 1.0.0
+security:
+  - oauth: [payments.read]
+paths:
+  /refunds:
+    get:
+      operationId: listRefunds
+      summary: List refunds
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 500 }
+    post:
+      operationId: createRefund
+      summary: Create a refund
+      security:
+        - oauth: [payments.write, refunds.create]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+  /customers/{customer_id}:
+    parameters:
+      - $ref: '#/components/parameters/CustomerId'
+    delete:
+      summary: Delete a customer
+components:
+  parameters:
+    CustomerId:
+      name: customer_id
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    RefundRequest:
+      type: object
+      properties:
+        charge_id: { type: string }
+        amount: { type: integer }
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/token
+          scopes:
+            payments.read: Read payments
+            payments.write: Write payments
+            refunds.create: Create refunds

@@ -1,0 +1,27 @@
+{
+  "tools": [
+    {
+      "name": "get_patient_record",
+      "description": "Fetch a patient's chart summary.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "patient_id": { "type": "string" },
+          "sections": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["patient_id"]
+      }
+    },
+    {
+      "name": "send_message",
+      "description": "Send a secure message to a care team inbox.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recipient": { "type": "string" },
+          "body": { "type": "string" }
+        }
+      }
+    }
+  ]
+}

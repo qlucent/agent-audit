@@ -64,5 +64,5 @@ if (errors.length) {
   process.exit(1);
 }
 mkdirSync(dirname(outFile), { recursive: true });
-writeFileSync(outFile, JSON.stringify({ rules, lexicon, scopes, iam }, null, 2) + '\n');
+writeFileSync(outFile, JSON.stringify({ rules, lexicon, scopes, iam, manifestSchema: readJson('schemas/manifest.schema.json') }, null, 2) + '\n');
 console.log(`compiled ${rules.length} rules, ${Object.keys(lexicon).length} lexicon files`);

@@ -1,0 +1,33 @@
+// Refund bot tools, Chat Completions form (JSONC: comments allowed)
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "get_order",
+      "description": "Look up an order by id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "order_id": { "type": "string" }
+        },
+        "required": ["order_id"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "issue_refund",
+      "description": "Refund part or all of an order to the original card.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "order_id": { "type": "string" },
+          "amount": { "type": "number", "maximum": 200 },
+          "reason": { "type": "string", "enum": ["damaged", "late", "other"] }
+        },
+        "required": ["order_id", "amount"]
+      }
+    }
+  },
+]

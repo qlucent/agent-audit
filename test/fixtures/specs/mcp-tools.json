@@ -1,0 +1,30 @@
+{
+  "tools": [
+    {
+      "name": "search_tickets",
+      "description": "Search helpdesk tickets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "limit": { "type": "integer", "maximum": 100 }
+        }
+      },
+      "annotations": { "readOnlyHint": true, "openWorldHint": false }
+    },
+    {
+      "name": "reset_user_mfa",
+      "description": "Reset a user's MFA devices.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": { "user_id": { "type": "string" } }
+          }
+        }
+      },
+      "annotations": { "destructiveHint": true }
+    }
+  ]
+}

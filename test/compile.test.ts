@@ -18,7 +18,9 @@ test('empty data dirs compile to empty data', () => {
   const d = tmp();
   const r = compile(d);
   assert.equal(r.status, 0, r.stderr);
-  assert.deepEqual(JSON.parse(readFileSync(join(d, 'out.json'), 'utf8')), { rules: [], lexicon: {}, scopes: [], iam: [] });
+  const { manifestSchema, ...rest } = JSON.parse(readFileSync(join(d, 'out.json'), 'utf8'));
+  assert.deepEqual(rest, { rules: [], lexicon: {}, scopes: [], iam: [] });
+  assert.equal(manifestSchema.title, 'Qlucent agent manifest');
 });
 
 test('rule missing fixtures.pass fails with the filename', () => {
