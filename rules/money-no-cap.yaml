@@ -1,0 +1,23 @@
+id: money-no-cap
+title: Money action has no amount cap
+severity: high
+check: money-no-cap
+why: >-
+  The agent can move money and nothing in the spec bounds how much. A prompt injection, a misread request or a loop
+  can refund, pay or transfer any amount. In fintech, e-commerce and finance-ops agents this is critical.
+fix: >-
+  Add a `maximum` to the amount parameter's JSON Schema, or a manifest limit
+  (`limits: { issue_refund: { max_amount: 200, currency: USD } }`), and enforce the same bound server-side.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://json-schema.org/understanding-json-schema/reference/numeric#range
+fixtures:
+  fail:
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { order_id: { type: string }, amount: { type: number } } } }]
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number } } } }]
+      manifest: { agent: { name: Refund bot, domain: fintech }, approvals: [issue_refund] }
+  pass:
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number, maximum: 100 } } } }]
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number } } } }]
+      manifest: { agent: { name: Refund bot }, limits: { issue_refund: { max_amount: 200, currency: USD } } }
+    - config: [{ name: get_refund_status, input_schema: { type: object, properties: { amount: { type: number } } } }]

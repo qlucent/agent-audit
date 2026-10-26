@@ -122,3 +122,7 @@ export interface AuditResult {
   matrix: unknown;
   rulesChecked: number;
 }
+
+export interface CheckContext { actions: Action[]; manifest?: Manifest; domain?: Domain; data: GeneratedData }
+export type Check = (ctx: CheckContext, rule: Rule) => Hit[];
+export interface Fixture { file?: string; config: unknown; manifest?: unknown }

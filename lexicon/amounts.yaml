@@ -1,0 +1,4 @@
+# Amount-like params of a money action (money-no-cap). Whole match on a parameter's leaf name, split into words.
+- param_patterns:
+    - "amount|amounts|amount (cents|minor|value|due|requested)|(refund|payment|transfer|charge|payout|credit|order|total|unit|gross|net) amount"
+    - "value|total|total (amount|price|cost)|subtotal|price|unit price|cost|fee|sum|quantity|qty"

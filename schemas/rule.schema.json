@@ -30,7 +30,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["config"],
-        "properties": { "file": { "type": "string" }, "config": {} }
+        "properties": { "file": { "type": "string" }, "config": {}, "manifest": { "type": "object" } }
       }
     }
   }

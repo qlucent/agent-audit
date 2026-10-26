@@ -1,0 +1,22 @@
+id: purchase-without-consent
+title: Buys or charges for the user without consent
+severity: high
+check: purchase-without-consent
+why: >-
+  The agent can buy, charge, book or subscribe on the user's behalf with no step where the user agrees to the
+  purchase. Without a manifest the spec cannot show a consent step that may exist in code, so this is reported one
+  level lower.
+fix: >-
+  Ask the user to confirm the item and price before the purchase, and declare the step in the manifest
+  (`approvals: [purchase_item]`).
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+fixtures:
+  fail:
+    - config: [{ name: purchase_item, input_schema: { type: object, properties: { item_id: { type: string } } } }]
+    - config: [{ name: book_flight, input_schema: { type: object, properties: { flight_id: { type: string } } } }]
+      manifest: { agent: { name: Travel bot }, approvals: [cancel_*] }
+  pass:
+    - config: [{ name: purchase_item, input_schema: { type: object, properties: { item_id: { type: string } } } }]
+      manifest: { agent: { name: Shop bot }, approvals: [purchase_*] }
+    - config: [{ name: get_purchase_history, input_schema: { type: object, properties: {} } }]

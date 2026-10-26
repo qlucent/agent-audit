@@ -1,0 +1,12 @@
+# Actions that buy, charge or subscribe on the user's behalf (purchase-without-consent). Name patterns, word boundary.
+- name_patterns:
+    - "purchase|purchases|buy|buys|checkout( sessions?)?|charge|charges|charge card|place orders?"
+    - "book (flights?|hotels?|tickets?|trips?|fares?|seats?|rental cars?)"
+    - "(create|start|upgrade|renew|activate|purchase|buy) (a )?(paid )?(subscriptions?|plans?|licen[cs]es?|seats?)"
+    - "subscribe( to)?( a)? (paid |premium )?(plans?|tiers?|subscriptions?)"
+  not_patterns:
+    - "get|list|lookup|look up|search|find|fetch|read|view|show|describe|retrieve|check|count"
+    - "status|statuses|polic(y|ies)|history|rules?|reports?|terms|eligibility|summary|stats|options?|explain|faqs?|help|templates?"
+    - "codes?|links?|pages?|cancel|cancell?ation|refunds?"
+    # git checkout is not a purchase.
+    - "branch|branches|repo|repos|git|commit|ref|refs|tags?|files?|paths?"

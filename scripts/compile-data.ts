@@ -5,6 +5,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Ajv } from 'ajv';
 import { parse } from 'yaml';
+import { KNOWN_CHECKS } from '../src/checks/names.ts';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const dataDir = process.argv[2] ?? repo;
@@ -42,6 +43,7 @@ for (const name of yamls('rules')) {
   const rule = load(file);
   if (rule === undefined || !check('rule', file, rule)) continue;
   if ((rule as { id: string }).id !== basename(name, '.yaml')) errors.push(`${file}: id must equal the filename`);
+  if (!KNOWN_CHECKS.includes((rule as { check: string }).check)) errors.push(`${file}: unknown check "${(rule as { check: string }).check}"`);
   rules.push(rule);
 }
 

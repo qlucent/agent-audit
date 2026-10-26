@@ -1,0 +1,19 @@
+id: unclassified-action
+title: Actions with no recognised effect
+severity: low
+check: unclassified-action
+why: >-
+  These actions are not read-only by HTTP method or annotation, and their names matched nothing the auditor knows, so
+  no other rule could check them. They may move money, change accounts or delete data.
+fix: >-
+  Review each action and declare what it does in the manifest
+  (`actions: { frobnicate_widget: { effects: [write] } }`), or rename it to say what it does.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+fixtures:
+  fail:
+    - config: [{ name: frobnicate_widget, input_schema: { type: object, properties: {} } }]
+  pass:
+    - config: [{ name: frobnicate_widget, input_schema: { type: object, properties: {} } }]
+      manifest: { agent: { name: Widget bot }, actions: { frobnicate_widget: { effects: [write] } } }
+    - config: [{ name: get_widget, input_schema: { type: object, properties: {} } }]

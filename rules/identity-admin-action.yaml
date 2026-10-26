@@ -1,0 +1,23 @@
+id: identity-admin-action
+title: Can administer users, roles or credentials
+severity: high
+check: identity-admin-action
+why: >-
+  The agent can create or disable users, reset passwords or MFA, or change roles. Anyone who can steer the agent can
+  take over accounts or grant themselves access. Critical when the agent is customer-facing or L1 support, or the
+  manifest marks identity-admin out of scope.
+fix: >-
+  Move identity changes to a separate, privileged workflow with its own approval, or remove the action. If it must
+  stay, verify the requester's identity out of band before acting.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://attack.mitre.org/techniques/T1098/
+fixtures:
+  fail:
+    - config: [{ name: reset_user_mfa, input_schema: { type: object, properties: { user_id: { type: string } } } }]
+    - config: [{ name: assign_role, input_schema: { type: object, properties: { user_id: { type: string }, role: { type: string } } } }]
+      manifest: { agent: { name: Helpdesk bot, purpose: L1 helpdesk for employees } }
+  pass:
+    - config: [{ name: list_password_rules, input_schema: { type: object, properties: {} } }]
+    - config: [{ name: get_user_profile, input_schema: { type: object, properties: { user_id: { type: string } } } }]
+      manifest: { agent: { name: Helpdesk bot, purpose: L1 helpdesk for employees } }

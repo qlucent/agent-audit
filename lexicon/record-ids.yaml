@@ -1,0 +1,5 @@
+# Params that select one person's record (unscoped-record-access). Whole match on a parameter's leaf name.
+# Bare "id" is left out: too generic to call it a record selector on its own.
+- param_patterns:
+    - "(patient|customer|client|account|user|member|employee|person|contact|subscriber|policyholder|cardholder|record|case|claim|beneficiary) ids?"
+    - "mrn|medical record number|account number|member number|ssn"

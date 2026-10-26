@@ -1,0 +1,22 @@
+id: destructive-no-approval
+title: Deletes without an approval step
+severity: medium
+check: destructive-no-approval
+why: >-
+  The agent can delete data (or the tool says it is destructive) with no human confirming it. A bulk delete is high.
+  Without a manifest the spec cannot show an approval that may exist in code, so this is reported one level lower.
+fix: >-
+  Require a confirmation before deletes, prefer soft delete, and declare the step in the manifest
+  (`approvals: ["delete_*"]`).
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://modelcontextprotocol.io/specification/2025-06-18/server/tools
+fixtures:
+  fail:
+    - config: [{ name: delete_document, input_schema: { type: object, properties: { document_id: { type: string } } } }]
+    - config: { tools: [{ name: archive_space, inputSchema: { type: object, properties: {} }, annotations: { destructiveHint: true } }] }
+      manifest: { agent: { name: Docs bot } }
+  pass:
+    - config: [{ name: delete_document, input_schema: { type: object, properties: {} } }]
+      manifest: { agent: { name: Docs bot }, approvals: ["delete_*"] }
+    - config: [{ name: get_document, input_schema: { type: object, properties: {} } }]

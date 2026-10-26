@@ -62,7 +62,7 @@ const verbNoun = (text: string, verbs: Span[], nouns: Span[]) => {
 
 /** Shell-style glob, case-insensitive. Over 256 chars (no real IAM action or tool name) it matches nothing: a 100k-char
  * glob would exceed the regex size limit. */
-const glob = (g: string) => g.length > 256 ? /(?!)/ : new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i');
+export const glob = (g: string) => g.length > 256 ? /(?!)/ : new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i');
 
 /**
  * Manifest `actions:` (R7): declared effects/data replace the classifier's for every action whose name matches the glob

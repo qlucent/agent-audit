@@ -49,3 +49,21 @@ test('lexicon pattern that is not a valid regex fails with the filename', () => 
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /lexicon[\/]effects\.yaml: \/0\/name_patterns/);
 });
+
+test('rule naming an unregistered check fails with the filename', () => {
+  const d = tmp();
+  writeFileSync(join(d, 'rules', 'x-rule.yaml'), `id: x-rule
+title: t
+severity: low
+check: no-such-check
+why: w
+fix: f
+references: []
+fixtures:
+  fail: [{ config: {} }]
+  pass: [{ config: {} }]
+`);
+  const r = compile(d);
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /rules[\/]x-rule\.yaml: unknown check "no-such-check"/);
+});

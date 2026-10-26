@@ -1,0 +1,22 @@
+id: unscoped-record-access
+title: Reads or writes any person's record by id
+severity: high
+check: unscoped-record-access
+why: >-
+  The action takes a record id (patient, customer, account, user) for sensitive data and nothing ties it to the person
+  the agent acts for, so a prompt can make it fetch someone else's record (broken object-level authorisation).
+  Critical for health records. Without a manifest it is reported one level lower.
+fix: >-
+  Derive the record id from the authenticated requester server-side instead of taking it as a parameter, and declare
+  the restriction in the manifest role (`allow: ["read:own-records"]`).
+references:
+  - https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/
+fixtures:
+  fail:
+    - config: [{ name: get_patient_record, input_schema: { type: object, properties: { patient_id: { type: string } } } }]
+    - config: [{ name: get_customer, input_schema: { type: object, properties: { customer_id: { type: string } } } }]
+      manifest: { agent: { name: Support bot, acts_for: [customer] }, roles: { customer: { allow: ["read:*"] } } }
+  pass:
+    - config: [{ name: get_customer, input_schema: { type: object, properties: { customer_id: { type: string } } } }]
+      manifest: { agent: { name: Support bot, acts_for: [customer] }, roles: { customer: { allow: ["read:own-*"] } } }
+    - config: [{ name: get_order_status, input_schema: { type: object, properties: { order_id: { type: string } } } }]

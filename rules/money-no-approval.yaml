@@ -1,0 +1,21 @@
+id: money-no-approval
+title: Money action has no approval step
+severity: high
+check: money-no-approval
+why: >-
+  The agent can refund, pay, charge or transfer without a human confirming it. Money that leaves is hard to get back.
+  Without a manifest the spec cannot show an approval that may exist in code, so this is reported one level lower,
+  and also one level lower when the amount is capped.
+fix: >-
+  Put a human approval step in front of the action and declare it in the manifest (`approvals: [issue_refund]`).
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+fixtures:
+  fail:
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number } } } }]
+    - config: [{ name: create_payout, input_schema: { type: object, properties: { amount: { type: number, maximum: 50 } } } }]
+      manifest: { agent: { name: Payout bot }, approvals: [issue_refund] }
+  pass:
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number } } } }]
+      manifest: { agent: { name: Refund bot }, approvals: [issue_*] }
+    - config: [{ name: refund_policy_lookup, input_schema: { type: object, properties: {} } }]

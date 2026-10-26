@@ -1,0 +1,3 @@
+# Purpose or acts_for role names that look L1 / support / customer-facing (identity-admin-action goes critical).
+- name_patterns:
+    - "l1|l 1|tier ?1|level ?1|first line|front ?line|help ?desk|service ?desk|support|customers?|customer facing|end users?|self service|consumers?|shoppers?|patients?|guests?|chatbot|faq"
