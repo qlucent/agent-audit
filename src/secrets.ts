@@ -57,6 +57,28 @@ const PROPERTY_MAPS = new Set(['properties', 'patternProperties']);
 // Free text, never output verbatim (R22): these keys' string values, and every string under an `x-*` key.
 const FREE_TEXT = new Set(['description', 'summary', 'title', 'purpose']);
 export const HIDDEN_TEXT = '(description hidden)';
+export const HIDDEN_COMMENT = '(comment hidden)';
+/** R23: a comment (`# x`, `// x`, a block comment) as its delimiters around the marker; line breaks and CRs kept. */
+export function hideComment(c: string): string {
+  const cr = (l: string) => (l.endsWith('\r') ? '\r' : '');
+  const open = c.startsWith('#') ? '#' : c.slice(0, 2);
+  if (open !== '/*') return c.slice(open.length).trim() ? `${open} ${HIDDEN_COMMENT}${cr(c)}` : c;
+  if (!c.slice(2, -2).trim()) return c;
+  const ls = c.split('\n');
+  if (ls.length === 1) return `/* ${HIDDEN_COMMENT} */`;
+  return [`/* ${HIDDEN_COMMENT}${cr(ls[0]!)}`, ...ls.slice(1, -1).map(cr), ' */'].join('\n');
+}
+/** JSONC text with every comment hidden (R23); line numbers are kept. */
+export function hideJsonComments(text: string): string {
+  const scan = createScanner(text, false);
+  let out = '', pos = 0;
+  for (let t = scan.scan(); t !== 17 /* EOF */; t = scan.scan()) {
+    if (t !== 12 && t !== 13 /* line, block comment; SyntaxKind is a const enum */) continue;
+    out += text.slice(pos, scan.getTokenOffset()) + hideComment(text.substr(scan.getTokenOffset(), scan.getTokenLength()));
+    pos = scan.getTokenOffset() + scan.getTokenLength();
+  }
+  return out + text.slice(pos);
+}
 // An OpenAPI parameter or header carrying a credential, and a security scheme: these children hold its value (N1).
 const VALUE_KEYS = new Set(['example', 'examples', 'content', 'schema', 'default', 'x-example', 'x-examples']);
 const CREDENTIAL_HEADER = /^(?:authorization|proxy-authorization|cookie|set-cookie)$/i;
@@ -210,8 +232,9 @@ function walkJson(text: string, tree: Node | undefined, edits: Edit[], raws: str
   const scan = createScanner(text, false);
   for (let t = scan.scan(); t !== 17 /* EOF */; t = scan.scan()) {
     if (t !== 12 && t !== 13 /* line, block comment; SyntaxKind is a const enum */) continue;
-    const c = scan.getTokenValue(), to = redactFree(c, raws);
-    if (to !== c) edits.push({ offset: scan.getTokenOffset(), length: scan.getTokenLength(), to, force: false });
+    const c = text.substr(scan.getTokenOffset(), scan.getTokenLength()), to = hideComment(c);
+    redactFree(c, raws); // a token in a comment is still masked wherever else it turns up
+    if (to !== c) edits.push({ offset: scan.getTokenOffset(), length: scan.getTokenLength(), to, force: true });
   }
   walkTree<Node>(tree, {
     kind: (n) => (n.type === 'object' ? 'map' : n.type === 'array' ? 'seq' : n.type === 'property' ? undefined : 'scalar'),
@@ -239,21 +262,24 @@ const indentMask = (l: string) => (/\S/.test(l) ? l.replace(/\S.*?(\r?)$/, `${HI
 function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: string[]): boolean {
   doc ??= parseDocument(text, { uniqueKeys: false });
   if (doc.errors.length) return false;
-  const blocks: [number, number][] = [];
   const render = (n: Scalar, v: string) =>
     n.type === 'QUOTE_DOUBLE' ? JSON.stringify(v) : n.type === 'QUOTE_SINGLE' ? `'${v.replaceAll("'", "''")}'` : v;
+  // Scalar source ranges (a block scalar's body only): a `#` inside one is not a comment.
+  const ranges: [number, number][] = [];
   const scalar = (n: Scalar, mode: Mode) => {
     const [s, e] = n.range ?? [0, 0];
     if (e <= s) return;
     const block = n.type === 'BLOCK_LITERAL' || n.type === 'BLOCK_FOLDED';
-    if (block) blocks.push([s, e]);
     const src = text.slice(s, e);
+    ranges.push([block ? s + src.indexOf('\n') + 1 : s, e]);
+    // R23: a comment on a block scalar's `|` / `>-` header line.
+    const header = (h: string) => h.replace(/(?<=[ \t])#[^\r\n]*/, hideComment);
     const hide = mode === 'hide' && typeof n.value === 'string';
     if (hide) {
       // R22: one marker line per original line; a block keeps its `|` / `>-` header.
       const nl = src.indexOf('\n');
       const to = !src.includes('\n') ? JSON.stringify(HIDDEN_TEXT)
-        : block ? src.slice(0, nl + 1) + src.slice(nl + 1).split('\n').map((l) => (/\S/.test(l) ? l.replace(/\S.*?(\r?)$/, `${HIDDEN_TEXT}$1`) : l)).join('\n')
+        : block ? header(src.slice(0, nl + 1)) + src.slice(nl + 1).split('\n').map((l) => (/\S/.test(l) ? l.replace(/\S.*?(\r?)$/, `${HIDDEN_TEXT}$1`) : l)).join('\n')
         : [JSON.stringify(HIDDEN_TEXT) + (src.slice(0, nl).endsWith('\r') ? '\r' : ''), ...src.split('\n').slice(1).map((l) => l.replace(/\S.*?(\r?)$/, '$1'))].join('\n');
       edits.push({ offset: s, length: e - s, to, force: true });
       return;
@@ -268,7 +294,7 @@ function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: 
       if (nl < 0) return;
       const body = src.slice(nl + 1);
       if (force) for (const l of body.split('\n')) if (l.trim()) keep(raws, l.trim());
-      to = src.slice(0, nl + 1) + (force ? body.split('\n').map(indentMask).join('\n') : redactFree(body, raws));
+      to = header(src.slice(0, nl + 1)) + (force ? body.split('\n').map(indentMask).join('\n') : redactFree(body, raws));
     } else if (src.includes('\n')) {
       if (force) keep(raws, String(n.value));
       to = force ? src.split('\n').map(indentMask).join('\n') : redactFree(src, raws);
@@ -289,17 +315,22 @@ function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: 
     str: (n) => (n && isScalar(n) && typeof n.value === 'string' ? n.value : undefined),
     scalar: (n, mode) => scalar(n as Scalar, mode),
   });
-  // Whole-line `#` comments outside block scalars.
-  for (let at = 0; at < text.length;) {
-    const nl = text.indexOf('\n', at), end = nl < 0 ? text.length : nl;
-    if (text[at] === '#' || /^[ \t]*#/.test(text.slice(at, Math.min(end, at + 256)))) {
-      const line = text.slice(at, end);
-      if (!blocks.some(([s, e]) => at >= s && at < e)) {
-        const to = redactFree(line, raws);
-        if (to !== line) edits.push({ offset: at, length: line.length, to, force: false });
-      }
-    }
-    at = end + 1;
+  // Every other `#` comment, whole-line or trailing (R23): a `#` at a line start or after a blank, outside a scalar.
+  ranges.sort((a, b) => a[0] - b[0]);
+  const inScalar = (p: number) => {
+    let lo = 0, hi = ranges.length - 1, at = -1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (ranges[mid]![0] <= p) { at = mid; lo = mid + 1; } else hi = mid - 1; }
+    return at >= 0 && p < ranges[at]![1];
+  };
+  const hash = /(?:^|[ \t])#/gm;
+  for (let m; (m = hash.exec(text));) {
+    const p = m.index + m[0].length - 1;
+    if (inScalar(p)) continue;
+    const nl = text.indexOf('\n', p), end = nl < 0 ? text.length : nl;
+    const c = text.slice(p, end), to = hideComment(c);
+    redactFree(c, raws); // a token in a comment is still masked wherever else it turns up
+    if (to !== c) edits.push({ offset: p, length: c.length, to, force: true });
+    hash.lastIndex = end;
   }
   return true;
 }

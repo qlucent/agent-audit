@@ -4,11 +4,11 @@
 
 Audit what an AI agent is allowed to do before you ship it. Give it the agent's tool definitions, OpenAPI spec, MCP config, OAuth scopes, AWS IAM policy and an optional manifest. They are audited together as one agent. You get a verdict, an inventory of every action in plain words, findings with the exact file and line, and a scope matrix that shows where the agent can do more than the people it acts for.
 
-Everything runs on your machine. No uploads, no network calls, no AI model. Secrets are masked in every output, and free-text fields (descriptions, summaries, titles) are never reproduced, because they are where pasted secrets and injected instructions hide.
+Everything runs on your machine. No uploads, no network calls, no AI model. Secrets are masked in every output, and free-text fields (descriptions, summaries, titles) and comments are never reproduced, because they are where pasted secrets and injected instructions hide.
 
 > Running agents in production? [Qlucent assesses agent permissions and data boundaries.](https://qlucent.com/#services)
 
-Try the bundled sample (from a clone of this repo):
+Try a bundled sample from a clone of this repo (the samples also ship in the npm package, under `samples/`):
 
 ```sh
 npx @qlucent/agent-audit samples/fintech-refund-bot/tools.json samples/fintech-refund-bot/agent.yaml
@@ -46,7 +46,7 @@ Dump the list you already give the model.
 | `purchase-without-consent` | an action buys, subscribes or charges on the user's behalf | high |
 | `unscoped-record-access` | an action takes any patient, customer or account id and nothing ties it to the requester | high; critical for health data |
 | `identity-admin-action` | an action resets MFA or passwords, or changes users or roles | high; critical for L1, support or customer-facing agents |
-| `destructive-no-approval` | a delete with no approval | medium |
+| `destructive-no-approval` | a delete with no approval | medium; high for a bulk delete |
 | `external-send-sensitive` | the agent can send data to a free destination and also reads sensitive data | medium; high for health data and credentials |
 | `code-exec-action` | shell, eval, raw SQL or deploy | high |
 | `bulk-export` | an export or list-all action on sensitive data | medium |
@@ -143,7 +143,7 @@ npx @qlucent/agent-audit <files...> [--format table|md|sarif] [--output <file>] 
 
 | Flag | Meaning |
 |---|---|
-| `--format` | `table` (default), `md` (Markdown with inventory and matrix) or `sarif` (SARIF 2.1.0) |
+| `--format` | `table` (default; findings only), `md` (Markdown with inventory and matrix) or `sarif` (SARIF 2.1.0) |
 | `--output <file>` | write the report to a file instead of stdout |
 | `--fail-on <level>` | `critical`, `high` (default), `medium`, `low` or `none` |
 | `--help`, `--version` | |

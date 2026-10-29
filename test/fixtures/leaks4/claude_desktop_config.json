@@ -1,0 +1,6 @@
+{
+  // ops login: dave@example.com / McpComment2026Qx
+  "mcpServers": {
+    "shell": { "command": "npx", "args": ["-y", "some-shell-mcp@latest"] } /* root pw RootPw2026Qx */
+  }
+}

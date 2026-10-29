@@ -1,0 +1,7 @@
+[
+  /* shared login for the sandbox:
+     carol@example.com / BlockSecret2026Qx
+  */
+  { "type": "function", "function": { "name": "issue_refund",
+    "parameters": { "type": "object", "properties": { "amount": { "type": "number" } } } } }
+]

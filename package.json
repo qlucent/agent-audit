@@ -20,7 +20,8 @@
     "agent-audit": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "samples"
   ],
   "engines": {
     "node": ">=22.23.4"

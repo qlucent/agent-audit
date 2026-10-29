@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: Staff API
+  version: 1.0.0
+# staging login is admin / Hunter2Hunter2Line
+paths:
+  /refunds:
+    post:
+      operationId: issueRefund
+      responses:
+        "200": { description: OK }

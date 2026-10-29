@@ -122,6 +122,8 @@ export interface Rule {
 export interface Hit {
   file: string; loc: Loc; action?: string; actions?: string[];
   field?: string; value?: string; detail?: string; severity?: Severity;
+  /** Replaces the rule's fix text for this finding. */
+  fix?: string;
 }
 
 export interface FileSummary {

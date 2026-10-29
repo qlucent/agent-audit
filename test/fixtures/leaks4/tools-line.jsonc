@@ -1,0 +1,5 @@
+[
+  // test account: alice@example.com / Wonderland2026Line
+  { "type": "function", "function": { "name": "issue_refund",
+    "parameters": { "type": "object", "properties": { "amount": { "type": "number" } } } } }
+]

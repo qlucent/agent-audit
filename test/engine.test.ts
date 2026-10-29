@@ -118,7 +118,7 @@ test('verdict tiers and texts match mcp-audit', () => {
   assert.deepEqual(bare.findings.map((f) => `${f.ruleId}:${f.severity}`), ['no-manifest:low']);
   const clear = audit([tools(['get_widget']), manifest({})]);
   assert.equal(clear.verdict.level, 'clear');
-  assert.equal(clear.verdict.text, `None of the ${rules.length} rules matched this config`);
+  assert.equal(clear.verdict.text, `None of the ${rules.length} rules matched this agent spec`);
   assert.equal(clear.rulesChecked, rules.length);
   assert.deepEqual(clear.matrix, { mode: 'effects', columns: ['read'], rows: [{ actionId: clear.actions[0]!.id, label: 'Get widget', cells: ['yes'] }] });
   const review = audit([tools(['delete_document'])]);
@@ -187,4 +187,19 @@ test('M4: a partly read file uses mcp-audit wording, without the "Couldn\'t chec
   assert.equal(v.text, `Only part of x.json could be read (parse error at line 7); none of the ${rules.length} rules matched the part that was read`);
   const none = verdictFor([], [{ file: 'y.json', format: null, actions: 0, error: { message: 'e', line: 1, column: 1 } }]);
   assert.equal(none.text, "Couldn't check any input: y.json couldn't be parsed");
+});
+
+test('M1: a purchase is not also "no recognised effect"', () => {
+  const r = audit([tools(['subscribe_plan', { plan_id: { type: 'string' } }])]);
+  const ids = r.findings.filter((f) => f.server === 'subscribe_plan').map((f) => f.ruleId);
+  assert.ok(ids.includes('purchase-without-consent'), ids.join());
+  assert.ok(!ids.includes('unclassified-action'), ids.join());
+  assert.equal(r.actions[0]!.unclassified, undefined);
+});
+
+test('M7: an IAM `*` grant is reported once, by iam-wildcard, not again as external-send-sensitive', () => {
+  const policy = { name: 'policy.json', text: JSON.stringify({ Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: '*', Resource: '*' }] }, null, 2) };
+  const ids = audit([policy]).findings.map((f) => f.ruleId);
+  assert.ok(ids.includes('iam-wildcard'), ids.join());
+  assert.ok(!ids.includes('external-send-sensitive'), ids.join());
 });

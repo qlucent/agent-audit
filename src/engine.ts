@@ -43,7 +43,7 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
       evidence: h.value,
       excerpt: [] as Finding['excerpt'],
       why: rule.why,
-      fix: rule.fix,
+      fix: h.fix ?? rule.fix,
       helpUri: `https://qlucent.com/tools/agent-audit/rules/${rule.id}`,
     }));
   });
@@ -86,6 +86,7 @@ export function verdictFor(findings: Finding[], files: FileSummary[]): Verdict {
   const partly = files.some((f) => f.error && f.actions);
   const recognised = files.some((f) => f.format !== null && f.format !== 'manifest' && !f.error);
   const verdict = computeVerdict(findings, rules.length, recognised, partly ? why : `Couldn't check any input: ${why}`);
+  if (verdict.level === 'clear') verdict.text = verdict.text.replace(/this config$/, 'this agent spec'); // M2
   const broken = files.filter((f) => f.error).length;
   if (verdict.level !== 'unrecognised' && broken) verdict.text += ` (${broken} file${broken === 1 ? '' : 's'} couldn't be fully parsed)`;
   return verdict;

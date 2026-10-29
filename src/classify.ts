@@ -1,6 +1,7 @@
 // Fills effects, data classes and evidence from data files only: lexicon/*.yaml, catalog/scopes.yaml, catalog/aws-iam.yaml.
 import bundled from './generated/data.json' with { type: 'json' };
 import { humanise } from './parse/json.ts';
+import { actionText, nameMatcher } from './checks/util.ts';
 import type { Action, DataClass, Domain, Effect, Evidence, GeneratedData, LexEntry, Manifest } from './types.ts';
 
 const DEFAULT = bundled as unknown as GeneratedData;
@@ -67,10 +68,11 @@ export const glob = (g: string) => g.length > 256 ? /(?!)/ : new RegExp(`^${g.re
 /**
  * Manifest `actions:` (R7): declared effects/data replace the classifier's for every action whose name matches the glob
  * (all matching globs are merged). An action with no effect, none declared, and not read-only by method or annotation
- * is marked unclassified for review.
+ * is marked unclassified for review. A purchase-lexicon hit is not (purchase-without-consent reports it: M1).
  */
 export function classify(actions: Action[], data: GeneratedData = DEFAULT, manifest?: Manifest): Action[] {
   const declared = Object.entries(manifest?.actions ?? {}).map(([g, d]) => ({ g, re: glob(g), ...d }));
+  const buys = nameMatcher(data.lexicon.purchases);
   return classifyLexicon(actions, data).map((a) => {
     const hits = declared.filter((d) => d.re.test(a.name));
     for (const [key, tags] of [['effects', hits.filter((d) => d.effects)], ['data', hits.filter((d) => d.data)]] as const) {
@@ -85,7 +87,7 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT, manif
         ],
       };
     }
-    if (!a.effects.length && !hits.some((d) => d.effects)) a.unclassified = true;
+    if (!a.effects.length && !hits.some((d) => d.effects) && !buys(actionText(a))) a.unclassified = true;
     return a;
   });
 }

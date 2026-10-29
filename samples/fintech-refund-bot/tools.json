@@ -23,6 +23,21 @@
           "required": ["order_id", "amount"]
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "buy_gift_card",
+        "description": "Buy a store gift card as a goodwill gesture.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string" },
+            "amount": { "type": "number", "maximum": 100 }
+          },
+          "required": ["email", "amount"]
+        }
+      }
     }
   ]
 }

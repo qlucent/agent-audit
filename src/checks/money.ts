@@ -4,8 +4,12 @@ import { applySeverity, approvable, approved, has, limitFor, nameMatcher, paramM
 const MONEY_DOMAINS = ['fintech', 'ecommerce', 'finance-ops'];
 const NO_APPROVAL = 'no approval step is declared';
 
+// M5: one compiled matcher per lexicon, not one per call.
+const amountMatchers = new WeakMap<object, (p: Param) => boolean>();
 const amounts = (ctx: CheckContext, a: Action): Param[] => {
-  const isAmount = paramMatcher(ctx.data.lexicon.amounts);
+  const lex = ctx.data.lexicon.amounts ?? [];
+  let isAmount = amountMatchers.get(lex);
+  if (!isAmount) amountMatchers.set(lex, isAmount = paramMatcher(lex));
   return a.params.filter((p) => isAmount(p) && (p.type === undefined || p.type === 'number' || p.type === 'integer'));
 };
 

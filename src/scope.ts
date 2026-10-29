@@ -24,7 +24,9 @@ const HIGH_RISK: Effect[] = ['money', 'identity-admin', 'code-exec', 'delete', '
 const isRecordId = paramMatcher(data.lexicon['record-ids']);
 
 type Limits = Manifest['limits'];
-interface Entry { target: (a: Action) => boolean; holds: (a: Action, limits: Limits) => boolean; own: boolean }
+interface Entry { kind: Miss['kind']; target: (a: Action) => boolean; holds: (a: Action, limits: Limits) => boolean; own: boolean; why: (a: Action, limits: Limits) => string }
+/** An entry whose target names the action but whose qualifier fails (I1): why, in words, and what kind of fix. */
+export interface Miss { entry: string; why: string; kind: 'cap' | 'word' }
 
 const wordsOf = new WeakMap<Action, string[]>();
 const wordHit = (re: RegExp, a: Action) => {
@@ -58,7 +60,12 @@ function compile(entry: string): Entry {
   const holds = n
     ? (a: Action, limits: Limits) => { const c = cap(a, limits); return c !== undefined && c <= Number(n[1]); }
     : (a: Action) => !noun || wordHit(noun, a);
-  const e = { target, holds, own: !!own };
+  const why = (a: Action, limits: Limits) => {
+    if (!n) return `${a.name} has no word matching "${own ? own[1] : q}"`;
+    const c = cap(a, limits);
+    return c === undefined ? `${a.name} has no cap` : `${a.name}'s cap ${c} is above ${n[1]}`;
+  };
+  const e = { target, holds, own: !!own, why, kind: n ? 'cap' as const : 'word' as const };
   cache.set(entry, e);
   return e;
 }
@@ -68,21 +75,23 @@ export const targets = (entry: string, a: Action) => compile(entry).target(a);
 
 /**
  * How a role grants the action: `allowed`, `declared` (only through an `own` entry while the action takes a free
- * record-id param, so the spec cannot show the binding: R19), or undefined (denied).
+ * record-id param, so the spec cannot show the binding: R19), or denied: the first entry whose target names the action
+ * but whose qualifier fails (I1), else undefined.
  */
-export function grant(role: RoleSpec | undefined, a: Action, limits?: Limits): 'allowed' | 'declared' | undefined {
-  let declared = false;
+export function grant(role: RoleSpec | undefined, a: Action, limits?: Limits): 'allowed' | 'declared' | Miss | undefined {
+  let declared = false, miss: Miss | undefined;
   for (const s of role?.allow ?? []) {
     const e = compile(s);
-    if (!e.target(a) || !e.holds(a, limits)) continue;
+    if (!e.target(a)) continue;
+    if (!e.holds(a, limits)) { miss ??= { entry: s, why: e.why(a, limits), kind: e.kind }; continue; }
     if (!e.own || !a.params.some(isRecordId)) return 'allowed';
     declared = true;
   }
-  return declared ? 'declared' : undefined;
+  return declared ? 'declared' : miss;
 }
 
 /** Spec decision 4: allowed when any entry's target and qualifier both hold (a declared own-grant counts). */
-export const allows = (role: RoleSpec | undefined, a: Action, limits?: Limits) => grant(role, a, limits) !== undefined;
+export const allows = (role: RoleSpec | undefined, a: Action, limits?: Limits) => typeof grant(role, a, limits) === 'string';
 
 /** An `own` entry of an acted-for role (any role when `acts_for` is empty) grants the action. */
 export function ownScoped(m: Manifest | undefined, a: Action): boolean {
@@ -107,7 +116,7 @@ export function buildMatrix(actions: Action[], manifest?: Manifest): Matrix {
       rows: actions.map((a) => {
         const out = listedOut(manifest, a).length > 0;
         const denied: MatrixCell = significant(a) ? 'exceeds' : 'exceeds-minor';
-        return { actionId: a.id, label: a.label, cells: ['yes', ...specs.map((s) => (out ? 'exceeds' : grant(s, a, manifest!.limits) ?? denied))] };
+        return { actionId: a.id, label: a.label, cells: ['yes', ...specs.map((s) => { const g = out ? 'exceeds' : grant(s, a, manifest!.limits); return typeof g === 'string' ? g : denied; })] };
       }),
     };
   }

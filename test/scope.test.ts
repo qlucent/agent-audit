@@ -194,3 +194,22 @@ test('scope check is roughly linear: 20 roles x 500 actions x 10 entries < 300 m
     assert.ok(ms < limit, `${n} roles: ${ms.toFixed(0)} ms`);
   }
 });
+
+test('I1: exceeds-role names the entry whose qualifier failed, and its fix asks for a cap, not the entry', () => {
+  const roles = { agent: { name: 'Bot', acts_for: ['customer'] }, roles: { customer: { allow: ['*refund*:<=50'] } } };
+  const [none] = by([refund(), manifest(roles)], 'exceeds-role');
+  assert.match(none!.detail!, /customer allows `\*refund\*:<=50`, but issue_refund has no cap/);
+  assert.doesNotMatch(none!.fix, /add an allow entry/);
+  assert.match(none!.fix, /maximum|max_amount/);
+  const [over] = by([refund(200), manifest(roles)], 'exceeds-role');
+  assert.match(over!.detail!, /customer allows `\*refund\*:<=50`, but issue_refund's cap 200 is above 50/);
+  // A word qualifier that fails.
+  const words = { agent: { name: 'Bot', acts_for: ['customer'] }, roles: { customer: { allow: ['write:orders'] } } };
+  const [w] = by([tools(['update_ticket', { ticket_id: { type: 'string' } }]), manifest(words)], 'exceeds-role');
+  assert.match(w!.detail!, /customer allows `write:orders`, but update_ticket has no word matching "orders"/);
+  // No entry targets the action: the generic text stays.
+  const generic = { agent: { name: 'Bot', acts_for: ['customer', 'staff'] }, roles: { customer: { allow: ['read'] }, staff: { allow: ['write'] } } };
+  const [g] = by([tools(['update_ticket', { ticket_id: { type: 'string' } }]), manifest(generic)], 'exceeds-role');
+  assert.match(g!.detail!, /which the customer role does not allow$/);
+  assert.match(g!.fix, /add an allow entry/);
+});

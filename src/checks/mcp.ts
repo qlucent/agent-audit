@@ -1,9 +1,12 @@
 import { audit as mcpAudit, normalize, parseFile, type Cap } from '@qlucent/mcp-audit';
 import type { Action, Effect, Finding } from '../types.ts';
+import { hideJsonComments } from '../secrets.ts';
+import { looksJson } from '../parse/json.ts';
 
 /** Spec decision 3: mcp-audit's findings, passed through under `mcp/<id>` with their own helpUri. */
 export const mcpFindings = (files: { name: string; text: string }[]): Finding[] =>
-  files.flatMap((f) => mcpAudit([f]).findings.map((x) => ({ ...x, ruleId: `mcp/${x.ruleId}` })));
+  // R23: comments are hidden before mcp-audit cuts its excerpts; line numbers are kept.
+  files.flatMap((f) => mcpAudit([looksJson(f.name, f.text) ? { ...f, text: hideJsonComments(f.text) } : f]).findings.map((x) => ({ ...x, ruleId: `mcp/${x.ruleId}` })));
 
 const CAP: Partial<Record<Cap, Effect | 'pii'>> = { outbound: 'external-send', code_exec: 'code-exec', writes: 'write', private_data: 'pii' };
 // Two copies of a catalogued untrusted-input + outbound server: with them in the config every catalogued server shows

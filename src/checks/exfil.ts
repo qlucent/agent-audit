@@ -1,6 +1,9 @@
 import type { Action, Check, DataClass } from '../types.ts';
 import { applySeverity, paramMatcher } from './util.ts';
 
+/** An IAM grant of every action (`*`, `*:*`, NotAction): iam-wildcard already reports it (M7). */
+const everything = (a: Action) => a.kind === 'iam' && (!!a.notAction || a.name === '*' || a.name === '*:*');
+
 const SENSITIVE: DataClass[] = ['pii', 'phi', 'financial-data', 'credentials'];
 
 /**
@@ -13,9 +16,10 @@ export const externalSendSensitive: Check = (ctx, rule) => {
   // R15: curated catalogue entries count; mcp-audit's broad private_data (mapped to pii) does not, its dangerous-mix covers it.
   const strong = (a: Action) => SENSITIVE.filter((c) => a.evidence.some((e) => e.effect === c &&
     (['param', 'description', 'declared'].includes(e.via) || (e.via === 'catalog' && a.kind !== 'mcp-server'))));
-  const sends = ctx.actions.filter((a) => a.effects.includes('external-send') && (a.params.some(isDest) ||
+  const actions = ctx.actions.filter((a) => !everything(a));
+  const sends = actions.filter((a) => a.effects.includes('external-send') && (a.params.some(isDest) ||
     a.evidence.some((e) => e.effect === 'external-send' && ['annotation', 'catalog', 'declared'].includes(e.via))));
-  const reads = ctx.actions.filter((a) => strong(a).length);
+  const reads = actions.filter((a) => strong(a).length);
   if (!sends.length || !reads.length) return [];
   const cls = [...new Set(reads.flatMap(strong))];
   const up = cls.includes('phi') || cls.includes('credentials') || ctx.domain === 'healthcare' || ctx.domain === 'fintech';

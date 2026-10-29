@@ -1,0 +1,10 @@
+openapi: 3.0.3
+info:
+  title: Staff API
+  version: 1.0.0
+paths:
+  /refunds:
+    post:
+      operationId: issueRefund # qa account bob@example.com / TrailPass2026Qx
+      responses:
+        "200": { description: OK }

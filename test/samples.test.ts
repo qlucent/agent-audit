@@ -17,7 +17,11 @@ test('fintech sample is not ready: money without cap or approval, customer excee
   const { r, has } = run('fintech-refund-bot');
   assert.equal(r.verdict.level, 'not-ready');
   assert.ok(has('money-no-cap') && has('money-no-approval'));
-  assert.ok(r.findings.some((f) => f.ruleId === 'exceeds-role' && /customer/.test(f.detail ?? '')));
+  assert.ok(r.findings.some((f) => f.ruleId === 'exceeds-role' && /customer allows `\*refund\*:<=50`, but issue_refund has no cap/.test(f.detail ?? '')));
+  // I2: a capped purchase still needs the user's consent.
+  const gift = r.findings.filter((f) => f.server === 'buy_gift_card').map((f) => f.ruleId);
+  assert.ok(gift.includes('purchase-without-consent'), gift.join());
+  assert.ok(!gift.includes('money-no-cap') && !gift.includes('money-no-approval'), gift.join());
 });
 
 test('healthcare sample: unscoped record access is critical and sensitive data can be sent out', () => {
@@ -38,11 +42,13 @@ test('read-only sample is never not-ready', () => {
   assert.equal(r.findings.length, 0);
 });
 
-test('package contents: dist, LICENSE, README, package.json only; no email', () => {
+test('package contents: dist, samples, LICENSE, README, package.json only; no email', () => {
   const out = execFileSync('npm', ['pack', '--dry-run', '--json'], { cwd: root, shell: true, encoding: 'utf8' });
   const files: string[] = JSON.parse(out)[0].files.map((f: { path: string }) => f.path);
-  const bad = files.filter((f) => !/^(dist\/|LICENSE$|README\.md$|package\.json$)/.test(f));
+  const bad = files.filter((f) => !/^(dist\/|samples\/|LICENSE$|README\.md$|package\.json$)/.test(f));
   assert.deepEqual(bad, []);
   assert.ok(files.includes('README.md') && files.includes('LICENSE'));
+  // M4: the website imports the samples from the package.
+  assert.ok(files.includes('samples/fintech-refund-bot/tools.json'), files.join());
   assert.doesNotMatch(fs.readFileSync(path.join(root, 'package.json'), 'utf8'), /[\w.+-]+@[\w-]+\.[\w.]+/);
 });
