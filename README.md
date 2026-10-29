@@ -8,6 +8,8 @@ Everything runs on your machine. No uploads, no network calls, no AI model. Secr
 
 > Running agents in production? [Qlucent assesses agent permissions and data boundaries.](https://qlucent.com/#services)
 
+Try the bundled sample (from a clone of this repo):
+
 ```sh
 npx @qlucent/agent-audit samples/fintech-refund-bot/tools.json samples/fintech-refund-bot/agent.yaml
 ```
@@ -62,7 +64,7 @@ Without a manifest the audit cannot see approvals that may exist in your code, s
 
 The classifier decides what each action does (read, write, delete, money, external-send, identity-admin, code-exec, bulk) and which data it touches (pii, phi, financial-data, credentials). It uses keyword lists, the HTTP method, MCP annotations and a catalogue of public OAuth scopes and AWS IAM actions. **It is not an AI model.**
 
-- It works from names and parameter names. On action names it has not seen, it misses things: in two independent tests on unseen API names it placed roughly three quarters of them before the manifest override existed.
+- It works from names and parameter names. On action names it has not seen, it misses things: in two independent tests on unseen API names it placed roughly 70 to 80 percent of names it had never seen.
 - It errs toward misses rather than false alarms. `refund_policy_lookup` is a read, not money, and `list_password_rules` is not an identity action.
 - Known misses: amounts typed as strings (PayPal `amount.value`) get no `money-no-cap`; a bare `{customer}` path param is not treated as a record id; `POST /v1/subscriptions` is a write, not a purchase; `disable_account` is unclassified.
 - A server's own `readOnlyHint` never removes an effect the names show. The report notes the contradiction instead.
