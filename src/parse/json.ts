@@ -2,12 +2,15 @@
 import { findNodeAtLocation, getNodeValue, parseTree, printParseErrorCode, type ParseError as JsonError } from 'jsonc-parser';
 import { LineCounter, isAlias, isMap, isScalar, isSeq, parseDocument, type Node as YNode } from 'yaml';
 import type { Action, Loc, Param } from '../types.ts';
+import type { Tree } from '../secrets.ts';
 
 export type Path = (string | number)[];
 export type ParseError = { message: string; line: number; column: number };
 export interface Doc {
   value: unknown;
   json: boolean;
+  /** The parsed tree, kept for redaction so a file is parsed once. */
+  tree: Tree;
   /** Location of the key when the path ends in an object key (`key` false: of the value), else of the element. */
   loc(path: Path, key?: boolean): Loc;
 }
@@ -43,7 +46,7 @@ export function parseText(name: string, raw: string): { doc?: Doc; error?: Parse
         return at(k.offset, k.length);
       }
     };
-    return { doc: { value: getNodeValue(tree), json: true, loc } };
+    return { doc: { value: getNodeValue(tree), json: true, loc, tree: { json: tree } } };
   }
   const yd = parseDocument(text, { lineCounter: lc, uniqueKeys: false });
   const ye = yd.errors[0];
@@ -66,7 +69,7 @@ export function parseText(name: string, raw: string): { doc?: Doc; error?: Parse
       if (!p.length) return at(0, 0);
     }
   };
-  return { doc: { value: yd.toJS({ maxAliasCount: 100 }), json: false, loc } };
+  return { doc: { value: yd.toJS({ maxAliasCount: 100 }), json: false, loc, tree: { yaml: yd } } };
 }
 
 /** Resolve a local `$ref` (`#/a/b`); returns the target and its path for locations. */

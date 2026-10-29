@@ -1,0 +1,41 @@
+openapi: 3.0.3
+info: { title: Payments, version: '1' }
+servers:
+  - url: https://api.example.com/v1?client_id=pub&client_secret=SrvQuerySec2026Qx&sig=SrvSig2026QxQx9
+  - url: "https://api.example.com/v1?access_token=SrvQuoted2026Qx9#frag"
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: "Example: Authorization: Basic dXNlcjpCYXNpY1Bhc3MyMDI2UXg="
+      x-example: Basic dXNlcjpYRXhhbXBsZTIwMjZReDk=
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: "Send X-API-Key: ApiKeyDesc2026Qx9 on every call"
+      example: ApiKeyExample2026Q
+paths:
+  /refunds:
+    post:
+      operationId: refund_with_sk_live_EXAMPLE00000000000000000099
+      summary: Refund. Call with header Authorization Bearer BearerNoColon2026Q
+      description: >
+        Requires `Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.SigPart2026QxQxQx`.
+        Or pass ?api_key=QueryInDesc2026Qx in the URL https://x.example.com/r?x=1&token=TokInUrlDesc2026Q
+      parameters:
+        - name: Authorization
+          in: header
+          example: "Basic dXNlcjpQYXJhbUJhc2ljMjAyNg=="
+        - name: X-Api-Key
+          in: header
+          schema: { type: string, example: ParamExampleKey2026Q }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+            example: { amount: 5, api_key: BodyExKey2026Qx9 }
+      responses: { '200': { description: ok } }

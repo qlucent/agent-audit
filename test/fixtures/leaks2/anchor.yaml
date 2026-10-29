@@ -1,0 +1,20 @@
+openapi: 3.0.3
+info: { title: t, version: '1' }
+x-defaults: &creds
+  password: AnchorPass2026xyzQ
+  note: plain
+x-other: &tok AliasTokVal2026abcd
+paths:
+  /pay:
+    post:
+      x-auth:
+        <<: *creds
+      x-api-key: *tok
+      description: *tok
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+      responses: { '200': { description: ok } }

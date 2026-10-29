@@ -1,0 +1,49 @@
+openapi: 3.0.3
+info:
+  title: Payments
+  version: 1.2.3
+servers:
+  - url: https://admin:Hunter2Pass99@api.example.com/v1
+  - url: https://api.example.com/v1?api_key=QWERTY12345678
+paths:
+  /refunds:
+    post:
+      operationId: issue_refund
+      summary: Issue refund using key sk_live_EXAMPLE00000000000000000001
+      description: Uses token 9f8e7d6c5b4a39281706f5e4d3c2b1a0 internally
+      parameters:
+        - name: X-Api-Key
+          in: header
+          schema:
+            type: string
+            default: HDRDEFAULT9876543210xyz
+        - name: Authorization
+          in: header
+          example: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: number }
+                password:
+                  type: string
+                  example: |
+                    BlockScalarSecret777xyz
+            example:
+              amount: 10
+              client_secret: CLIENTSECRET0123456789abcdef
+      responses:
+        '200': { description: ok }
+  /customers/{id}:
+    get:
+      operationId: get_customer_email
+      summary: get customer email and phone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: ok }

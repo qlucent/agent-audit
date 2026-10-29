@@ -1,0 +1,15 @@
+openapi: 3.0.3
+info: { title: t, version: '1' }
+x-shared:
+  value: &k AnchoredVal2026Qx9
+paths:
+  /pay:
+    post:
+      x-client-secret: *k
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+      responses: { '200': { description: ok } }

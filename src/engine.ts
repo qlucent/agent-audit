@@ -6,7 +6,8 @@ import { checks } from './checks/index.ts';
 import { mcpEffects, mcpFindings } from './checks/mcp.ts';
 import { buildMatrix } from './scope.ts';
 import { excerpt } from './excerpt.ts';
-import { maskUnderSecretKeys, redactFile, scrubber, scrubDeep } from './secrets.ts';
+import { maskUnderSecretKeys, redactFile, redactFree, scrubber, scrubDeep } from './secrets.ts';
+import { humanise } from './parse/json.ts';
 import type { AuditResult, CheckContext, FileSummary, Finding, Fixture, GeneratedData, Hit, Rule, Severity, Verdict } from './types.ts';
 
 export { applySeverity } from './checks/util.ts';
@@ -53,7 +54,7 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
   const { files } = parsed;
   // Excerpts are the redacted source lines. None for a file that failed to parse (masking can't be trusted where the
   // structure is unknown) or for an MCP config: mcp-audit's own findings carry its stricter-masked excerpts there.
-  const redacted = new Map(inputs.map((i) => [i.name, redactFile(i.name, i.text)]));
+  const redacted = new Map(inputs.map((i, n) => [i.name, redactFile(i.name, i.text, parsed.trees[n])]));
   const lines = new Map<string, string[]>();
   const noExcerpt = new Set(files.filter((f) => f.error || f.format === 'mcp-config').map((f) => f.file));
   for (const f of findings) {
@@ -62,8 +63,13 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
     f.excerpt = excerpt(lines.get(f.file)!, f.line, f.column);
   }
   const verdict = verdictFor(findings, files);
-  const shown = actions.map((a) => (a.condition ? { ...a, condition: maskUnderSecretKeys(a.condition) } : a));
-  const result = { files, actions: shown, manifest, findings, verdict, matrix: buildMatrix(actions, manifest), rulesChecked: rules.length };
+  const shown = actions.map((a) => {
+    const id = a.operationId ?? a.name;
+    // A label built from a name holding a token (lowercased, split) would slip past the final pass: rebuild it (N6).
+    const label = redactFree(id) !== id ? humanise(redactFree(id)) : a.label;
+    return { ...a, label, ...(a.condition && { condition: maskUnderSecretKeys(a.condition) }) };
+  });
+  const result = { files, actions: shown, manifest, findings, verdict, matrix: buildMatrix(shown, manifest), rulesChecked: rules.length };
   return scrubDeep(result, scrubber([...redacted.values()].flatMap((r) => r.raws)));
 }
 

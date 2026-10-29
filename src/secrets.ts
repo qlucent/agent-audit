@@ -3,7 +3,7 @@
 // detection is ported here (R21: structural, over the parsed tree, like mcp-audit's `redact()`).
 // ponytail: import mcp-audit's detector instead once it exports one.
 import { createScanner, parseTree, type Node, type ParseError } from 'jsonc-parser';
-import { isAlias, isMap, isScalar, isSeq, parseDocument, type Scalar } from 'yaml';
+import { isAlias, isMap, isScalar, isSeq, parseDocument, type Document, type Scalar } from 'yaml';
 import { mask } from '@qlucent/mcp-audit';
 import { looksJson } from './parse/json.ts';
 
@@ -22,10 +22,18 @@ const TOKEN_SRC = PROVIDERS.map((r) => r.source).join('|');
 const TOKEN = new RegExp(TOKEN_SRC, 'g');
 const IS_TOKEN = new RegExp(TOKEN_SRC);
 const PEM = /-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----[^]*?(?:-----END [A-Z ]*PRIVATE KEY(?: BLOCK)?-----|$)/g;
+const JWT = /eyJ[\w-]+\.[\w-]+\.[\w-]+/g;
 const URL_RE = /[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>]+/gi;
 // URL userinfo (`user:pass@`, `token@`; a bare `git@` user is not a credential) and query values.
 const USERINFO = /^([a-z][a-z0-9+.-]*:\/\/)(?!git@[^/?#\s@]*(?:[/?#\s]|$))([^/?#\s]+)@/i;
 const QUERY = /([?&][^=&#\s]*=)([^&#\s]+)/g;
+// Credentials in prose with no `name:` key (N3): `Bearer x`, `Basic x`, `Authorization x`, `--token x`, `-u user:x`,
+// `token 9f8e…`. The value is captured last; the `tokenish` check keeps prose words.
+const BEARER = /\b((?:Bearer|Basic)[ \t]+)([A-Za-z0-9._~+/-]{12,}=*)/gi;
+const AUTH_BARE = /\b(Authorization[ \t]+)(?!Bearer\b|Basic\b)([A-Za-z0-9._~+/-]{12,}=*)/gi;
+const FLAG = /(?<![\w-])(--?(?:password|passwd|pass|token|secret|api-?key|access-token|auth-token|client-secret)[ \t]+)([^\s"'`-][^\s"'`]*)/gi;
+const CURL_USER = /(?<![\w-])((?:-u|--user)[ \t]+[^\s:"'`]+:)([^\s"'`@]+)/g;
+const WORD = /(?<![\w.-])((?:token|password|passwd|pwd|secret|api[_-]?key|apikey)[ \t]+)((?=[^\s"'`,;&|<>]*\d)(?=[^\s"'`,;&|<>]*[A-Za-z])[^\s"'`,;&|<>]{8,})/gi;
 // A pair: `name=value`, `name: value`, `"any:key/name": value`; a `:` after a bare name needs a space, so ARNs,
 // URLs and `service:Action` names are never pairs. The value is a quoted string or one bare word.
 const PAIR = /(?<![\w.-])(?:"([^"\n]+)"|'([^'\n]+)'|(-{0,2}[A-Za-z_][\w.-]*))(?:[ \t]*=[ \t]*|(?<=["'])[ \t]*:[ \t]*|[ \t]*:[ \t]+)(?:(?:bearer|basic|token)[ \t]+)?("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|[^\s"'`,;&|<>{}[\]()]+)/gi;
@@ -34,9 +42,17 @@ const REFERENCE = [/^\$\{[^}]*\}$/, /^\$[A-Za-z_][A-Za-z0-9_]*$/, /^\{\{[^}]*\}\
 const SECRET_TOKENS = new Set(['token', 'secret', 'key', 'apikey', 'password', 'passwd', 'pwd', 'pat', 'auth', 'authorization', 'credential', 'credentials', 'bearer', 'pw']);
 const NON_SECRET_LAST = new Set(['file', 'path', 'dir', 'url', 'uri', 'env', 'sock', 'socket', 'name', 'mode', 'type', 'arn', 'id', 'region', 'endpoint',
   'format', 'length', 'min', 'max', 'method', 'scheme']);
-// Spec structure inside a secret-named subtree (an OpenAPI security scheme, a schema property): not the secret itself.
+// Spec structure inside a secret-named subtree (a security scheme, a schema property): never the secret itself.
 const STRUCTURE = new Set(['type', 'format', 'in', 'name', 'scheme', 'bearerFormat', 'description', 'summary', 'title', 'required', 'nullable',
-  'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', '$ref', 'tokenUrl', 'authorizationUrl', 'refreshUrl', 'openIdConnectUrl']);
+  'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', '$ref', 'tokenUrl', 'authorizationUrl', 'refreshUrl', 'openIdConnectUrl',
+  'operationId', 'enum', 'writeOnly', 'readOnly', 'deprecated', 'scopes']);
+// Maps whose keys are names (paths, components), not properties holding a value: their keys never force (N5).
+const NAME_MAPS = new Set(['paths', 'schemas', 'securitySchemes', 'parameters', 'requestBodies', 'responses', 'definitions', 'flows']);
+// An OpenAPI parameter or header carrying a credential, and a security scheme: these children hold its value (N1).
+const VALUE_KEYS = new Set(['example', 'examples', 'content', 'schema', 'default', 'x-example', 'x-examples']);
+const CREDENTIAL_HEADER = /^(?:authorization|proxy-authorization|cookie|set-cookie)$/i;
+// Secret-sounding names that carry a client-chosen id, not a credential.
+const NOT_CREDENTIAL = /^idempotency[-_]?key$/i;
 
 const words = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 /** mcp-audit's rule: a key-name word is a secret word and the last word is not a pointer to one (`TOKEN_FILE`). Keys
@@ -57,6 +73,10 @@ function entropy(s: string): number {
 const keep = (raws: string[], v: string) => {
   if (IS_TOKEN.test(v) || (v.length >= 16 && /\d/.test(v) && /[A-Za-z]/.test(v) && !/\s/.test(v) && entropy(v) >= 3.5)) raws.push(v);
 };
+/** Looks like a credential rather than a prose word: a digit, base64 padding/slashes, or inner capitals. */
+const tokenish = (v: string) => /\d/.test(v) || /[+/=]/.test(v) || (/[A-Z]/.test(v.slice(1)) && /[a-z]/.test(v));
+/** A bare one-word value after a secret name in prose: `Token: returned by` keeps `returned` (N5). */
+const secretWord = (v: string) => /\d/.test(v) || v.length >= 16 || (v.length >= 8 && tokenish(v));
 
 const linesMask = (v: string) => v.split('\n').map((l) => HIDDEN + (l.endsWith('\r') ? '\r' : '')).join('\n');
 /** A URL with its userinfo and query values hidden. */
@@ -65,71 +85,139 @@ const redactUrl = (u: string, raws: string[]) => u
   .replace(QUERY, (_, pre: string, v: string) => { keep(raws, v); return pre + HIDDEN; });
 
 function pairs(s: string, raws: string[]): string {
-  return s.replace(PAIR, (m, dq?: string, sq?: string, bare?: string, raw = '') => {
+  const re = new RegExp(PAIR.source, 'gi');
+  let out = '', pos = 0;
+  for (let m; (m = re.exec(s));) {
+    const [whole, dq, sq, bare, raw = ''] = m;
+    const end = m.index + whole.length, at = end - raw.length;
     const quoted = /^["']/.test(raw) ? raw[0]! : '';
     const inner = quoted ? raw.slice(1, -1) : raw;
-    const head = m.slice(0, m.length - raw.length);
-    // Not a secret name: a quoted value may still hold pairs of its own (C1).
-    if (!secretLikeKey((dq ?? sq ?? bare ?? '').replace(/^-+/, ''))) return quoted ? head + quoted + pairs(inner, raws) + quoted : m;
-    if (!inner || inner.includes('•') || REFERENCE.some((r) => r.test(inner))) return m;
+    if (!secretLikeKey((dq ?? sq ?? bare ?? '').replace(/^-+/, ''))) {
+      // Not a secret name. A quoted value may hold pairs of its own (C1); a bare one may start the next pair, so
+      // the scan goes on from it instead of past it (`Note: api_key=x`, N2).
+      if (quoted) { out += s.slice(pos, at) + quoted + pairs(inner, raws) + quoted; pos = end; } else re.lastIndex = at;
+      continue;
+    }
+    if (!inner || inner.includes('•') || REFERENCE.some((r) => r.test(inner)) || (!quoted && !secretWord(inner))) { re.lastIndex = at; continue; }
     keep(raws, inner);
-    return head + quoted + mask(inner) + quoted;
-  });
+    out += s.slice(pos, at) + quoted + mask(inner) + quoted;
+    pos = end;
+  }
+  return out + s.slice(pos);
 }
 
-/** Free text (a string value, a comment) with private keys, provider tokens, URL credentials and secret-named pairs
- * hidden. Line breaks are kept. */
+/** `re` with its last group (the value) masked when `ok` holds. */
+const hideValue = (s: string, re: RegExp, raws: string[], ok: (v: string) => boolean = () => true) =>
+  s.replace(re, (m: string, pre: string, v: string) => (v.includes('•') || !ok(v) ? m : (keep(raws, v), pre + mask(v))));
+
+/** Free text (a string value, a comment) with private keys, provider tokens, JWTs, URL credentials, bearer and basic
+ * credentials, credential flags and secret-named pairs hidden. Line breaks are kept. */
 export function redactFree(s: string, raws: string[] = []): string {
+  // Fast path: every pattern needs a separator, a space or 20+ characters (tokens are 20+).
+  if (s.length < 20 && !/[=:\s]/.test(s)) return s;
   let o = s.includes('-----BEGIN') ? s.replace(PEM, linesMask) : s;
   o = o.replace(TOKEN, (m) => { raws.push(m); return mask(m); });
+  if (o.includes('eyJ')) o = o.replace(JWT, (m) => { raws.push(m); return mask(m); });
   if (o.includes('://')) o = o.replace(URL_RE, (u) => {
     const tail = /[).,;:!?]+$/.exec(u)?.[0] ?? ''; // `(see https://x/y?v=1).` keeps its `).` (M2)
     return redactUrl(u.slice(0, u.length - tail.length), raws) + tail;
   });
+  o = hideValue(o, BEARER, raws, tokenish);
+  o = hideValue(o, AUTH_BARE, raws, tokenish);
+  if (o.includes('-')) o = hideValue(hideValue(o, FLAG, raws), CURL_USER, raws);
+  o = hideValue(o, WORD, raws);
   return pairs(o, raws);
 }
 
-type Edit = { offset: number; length: number; to: string };
+/** A parsed file, as the parser left it: reused so a large YAML file is not parsed twice (N7). */
+export interface Tree { yaml?: Document; json?: Node }
+
+type Edit = { offset: number; length: number; to: string; force: boolean };
 /** Whether a child of `key` is masked whole: under a secret-named key, unless the key is spec structure. */
 const forceUnder = (force: boolean, key: string) => !STRUCTURE.has(key) && (force || secretLikeKey(key));
 
-function walkJson(text: string, edits: Edit[], raws: string[]): boolean {
-  const errors: ParseError[] = [];
-  const tree = parseTree(text, errors, { allowTrailingComma: true, disallowComments: false });
-  if (errors.length || !tree) return false;
+/** The format-specific half of the tree walk. */
+interface Adapter<N> {
+  kind(n: N): 'map' | 'seq' | 'scalar' | 'alias' | undefined;
+  entries(n: N): [key: string, keyNode: N | undefined, value: N | undefined][];
+  items(n: N): N[];
+  resolve(n: N): N | undefined;
+  /** String value of a scalar child, for the parameter / security-scheme checks. */
+  str(n: N | undefined): string | undefined;
+  scalar(n: N, force: boolean): void;
+}
+
+function walkTree<N extends object>(root: N | undefined, a: Adapter<N>): void {
+  const seen = new Set<string>();
+  let ids = 0;
+  const id = new WeakMap<N, number>();
+  const walk = (n: N | undefined, force: boolean, parent: string): void => {
+    if (!n) return;
+    const k = a.kind(n);
+    if (k === 'alias') {
+      // An alias under a secret key masks its anchor too (N4); each target is walked once per mode.
+      const t = a.resolve(n);
+      if (!t) return;
+      if (!id.has(t)) id.set(t, ids++);
+      const key = `${id.get(t)}:${force}`;
+      if (!seen.has(key)) { seen.add(key); walk(t, force, parent); }
+    } else if (k === 'map') {
+      const es = a.entries(n);
+      const get = (x: string) => a.str(es.find(([key]) => key === x)?.[2]);
+      const where = get('in')?.toLowerCase(), name = get('name') ?? '', type = get('type');
+      const holdsCredential = (where === 'header' || where === 'query' || where === 'cookie') && ((secretLikeKey(name) && !NOT_CREDENTIAL.test(name)) || CREDENTIAL_HEADER.test(name));
+      const scheme = (type === 'apiKey' || type === 'http' || type === 'oauth2' || type === 'openIdConnect') && es.some(([key]) => key === 'scheme' || key === 'in' || key === 'flows');
+      for (const [key, kn, v] of es) {
+        if (kn) a.scalar(kn, false);
+        const child = (holdsCredential || scheme) && VALUE_KEYS.has(key) ? true
+          : NAME_MAPS.has(parent) ? force && !STRUCTURE.has(key) : forceUnder(force, key);
+        walk(v, child, key);
+      }
+    } else if (k === 'seq') for (const c of a.items(n)) walk(c, force, '');
+    else if (k === 'scalar') a.scalar(n, force);
+  };
+  walk(root, false, '');
+}
+
+/** Under a secret key, a non-string scalar is masked only when long enough to be one (a PIN, not `90` or `true`). */
+const maskable = (v: unknown) => typeof v === 'string' || (typeof v === 'number' && String(v).length >= 6);
+
+function walkJson(text: string, tree: Node | undefined, edits: Edit[], raws: string[]): boolean {
+  if (!tree) {
+    const errors: ParseError[] = [];
+    tree = parseTree(text, errors, { allowTrailingComma: true, disallowComments: false });
+    if (errors.length || !tree) return false;
+  }
   const scan = createScanner(text, false);
   for (let t = scan.scan(); t !== 17 /* EOF */; t = scan.scan()) {
     if (t !== 12 && t !== 13 /* line, block comment; SyntaxKind is a const enum */) continue;
     const c = scan.getTokenValue(), to = redactFree(c, raws);
-    if (to !== c) edits.push({ offset: scan.getTokenOffset(), length: scan.getTokenLength(), to });
+    if (to !== c) edits.push({ offset: scan.getTokenOffset(), length: scan.getTokenLength(), to, force: false });
   }
-  const scalar = (n: Node, force: boolean) => {
-    if (force) {
-      const v = n.type === 'string' ? String(n.value) : text.slice(n.offset, n.offset + n.length);
-      if (n.type !== 'null') { keep(raws, v); edits.push({ offset: n.offset, length: n.length, to: JSON.stringify(mask(v)) }); }
-    } else if (n.type === 'string') {
-      const v = String(n.value), r = redactFree(v, raws);
-      if (r !== v) edits.push({ offset: n.offset, length: n.length, to: JSON.stringify(r) });
-    }
-  };
-  const walk = (n: Node | undefined, force: boolean): void => {
-    if (!n) return;
-    if (n.type === 'object') for (const p of n.children ?? []) {
-      const [k, v] = p.children ?? [];
-      if (k) scalar(k, false);
-      walk(v, forceUnder(force, String(k?.value ?? '')));
-    }
-    else if (n.type === 'array') for (const c of n.children ?? []) walk(c, force);
-    else scalar(n, force);
-  };
-  walk(tree, false);
+  walkTree<Node>(tree, {
+    kind: (n) => (n.type === 'object' ? 'map' : n.type === 'array' ? 'seq' : n.type === 'property' ? undefined : 'scalar'),
+    entries: (n) => (n.children ?? []).map((p) => [String(p.children?.[0]?.value ?? ''), p.children?.[0], p.children?.[1]]),
+    items: (n) => n.children ?? [],
+    resolve: () => undefined,
+    str: (n) => (n?.type === 'string' ? String(n.value) : undefined),
+    scalar: (n, force) => {
+      if (force && maskable(n.value)) {
+        const v = String(n.value);
+        keep(raws, v);
+        edits.push({ offset: n.offset, length: n.length, to: JSON.stringify(mask(v)), force: true });
+      } else if (n.type === 'string') {
+        const v = String(n.value), r = redactFree(v, raws);
+        if (r !== v) edits.push({ offset: n.offset, length: n.length, to: JSON.stringify(r), force: false });
+      }
+    },
+  });
   return true;
 }
 
 const indentMask = (l: string) => (/\S/.test(l) ? l.replace(/\S.*?(\r?)$/, `${HIDDEN}$1`) : l);
 
-function walkYaml(text: string, edits: Edit[], raws: string[]): boolean {
-  const doc = parseDocument(text, { uniqueKeys: false });
+function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: string[]): boolean {
+  doc ??= parseDocument(text, { uniqueKeys: false });
   if (doc.errors.length) return false;
   const blocks: [number, number][] = [];
   const render = (n: Scalar, v: string) =>
@@ -137,6 +225,9 @@ function walkYaml(text: string, edits: Edit[], raws: string[]): boolean {
   const scalar = (n: Scalar, force: boolean) => {
     const [s, e] = n.range ?? [0, 0];
     if (e <= s) return;
+    force &&= maskable(n.value);
+    // An anchored value can be aliased anywhere (a description), so its raw is hidden there too whatever its shape.
+    if (force && n.anchor) raws.push(String(n.value));
     const src = text.slice(s, e);
     let to: string | undefined;
     if (n.type === 'BLOCK_LITERAL' || n.type === 'BLOCK_FOLDED') {
@@ -157,25 +248,25 @@ function walkYaml(text: string, edits: Edit[], raws: string[]): boolean {
       const r = redactFree(n.value, raws);
       if (r !== n.value) to = render(n, r);
     }
-    if (to !== undefined && to !== src) edits.push({ offset: s, length: e - s, to });
+    if (to !== undefined && to !== src) edits.push({ offset: s, length: e - s, to, force });
   };
-  const walk = (n: unknown, force: boolean): void => {
-    if (!n || isAlias(n)) return;
-    if (isMap(n)) for (const p of n.items) {
-      if (isScalar(p.key)) scalar(p.key, false);
-      walk(p.value, forceUnder(force, isScalar(p.key) ? String(p.key.value) : ''));
-    }
-    else if (isSeq(n)) for (const c of n.items) walk(c, force);
-    else if (isScalar(n)) scalar(n, force);
-  };
-  walk(doc.contents, false);
+  walkTree<object>(doc.contents ?? undefined, {
+    kind: (n) => (isAlias(n) ? 'alias' : isMap(n) ? 'map' : isSeq(n) ? 'seq' : isScalar(n) ? 'scalar' : undefined),
+    entries: (n) => (isMap(n) ? n.items.map((p) => [isScalar(p.key) ? String(p.key.value) : '', isScalar(p.key) ? p.key : undefined, (p.value ?? undefined) as object | undefined]) : []),
+    items: (n) => (isSeq(n) ? (n.items as object[]) : []),
+    resolve: (n) => (isAlias(n) ? (n.resolve(doc) as object | undefined) : undefined),
+    str: (n) => (n && isScalar(n) && typeof n.value === 'string' ? n.value : undefined),
+    scalar: (n, force) => scalar(n as Scalar, force),
+  });
   // Whole-line `#` comments outside block scalars.
   for (let at = 0; at < text.length;) {
-    const end = text.indexOf('\n', at) < 0 ? text.length : text.indexOf('\n', at);
-    const line = text.slice(at, end);
-    if (/^\s*#/.test(line) && !blocks.some(([s, e]) => at >= s && at < e)) {
-      const to = redactFree(line, raws);
-      if (to !== line) edits.push({ offset: at, length: line.length, to });
+    const nl = text.indexOf('\n', at), end = nl < 0 ? text.length : nl;
+    if (text[at] === '#' || /^[ \t]*#/.test(text.slice(at, Math.min(end, at + 256)))) {
+      const line = text.slice(at, end);
+      if (!blocks.some(([s, e]) => at >= s && at < e)) {
+        const to = redactFree(line, raws);
+        if (to !== line) edits.push({ offset: at, length: line.length, to, force: false });
+      }
     }
     at = end + 1;
   }
@@ -183,18 +274,21 @@ function walkYaml(text: string, edits: Edit[], raws: string[]): boolean {
 }
 
 /**
- * The file text with every secret-looking value masked, line count kept: every scalar under a secret-named key, and
- * in every other string (and comment) any provider token, private key, URL credential or secret-named pair. Walks the
- * parsed tree (JSONC or YAML, as the parser reads it); a file that doesn't parse is scanned as free text. Excerpts
- * are cut from this text.
+ * The file text with every secret-looking value masked, line count kept: every scalar under a secret-named key or in
+ * a credential parameter's example, and in every other string (and comment) any provider token, private key, URL
+ * credential, bearer credential or secret-named pair. Walks the parsed tree (`tree` from the parser if given, else it
+ * parses; `null`: the file is known not to parse); a file that doesn't parse is scanned as free text. Excerpts are cut
+ * from this text.
  */
-export function redactFile(name: string, raw: string): { text: string; raws: string[] } {
+export function redactFile(name: string, raw: string, tree?: Tree | null): { text: string; raws: string[] } {
   const text = raw.replace(/^﻿/, ' ');
   const raws: string[] = [];
   const edits: Edit[] = [];
-  const parsed = looksJson(name, text) ? walkJson(text, edits, raws) : walkYaml(text, edits, raws);
+  const json = tree ? tree.json !== undefined : looksJson(name, text);
+  const parsed = tree === null ? false : json ? walkJson(text, tree?.json, edits, raws) : walkYaml(text, tree?.yaml, edits, raws);
   if (!parsed) return { text: redactFree(text, raws), raws };
-  edits.sort((a, b) => a.offset - b.offset);
+  // A forced mask wins over a free-text edit of the same node (an anchor reached again through an alias).
+  edits.sort((a, b) => a.offset - b.offset || Number(b.force) - Number(a.force));
   let out = '', pos = 0;
   for (const e of edits) {
     if (e.offset < pos) continue;
@@ -206,9 +300,9 @@ export function redactFile(name: string, raw: string): { text: string; raws: str
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** The final pass over every result string: `redactFree`, plus the secret-shaped raw values, as whole words. */
+/** The final pass over every result string: `redactFree`, plus the raw values found in the files. */
 export function scrubber(raws: string[]): (s: string) => string {
-  const known = [...new Set(raws)].sort((a, b) => b.length - a.length);
+  const known = [...new Set(raws)].filter((r) => r.length >= 4).sort((a, b) => b.length - a.length);
   // Provider tokens anywhere, even glued to a word; other raws only as whole words.
   const tokens = known.filter((r) => IS_TOKEN.test(r)), others = known.filter((r) => !IS_TOKEN.test(r));
   const re = (l: string[], word: boolean) => (l.length ? new RegExp(word ? `(?<![\\w-])(?:${l.map(escape).join('|')})(?![\\w-])` : l.map(escape).join('|'), 'g') : undefined);
@@ -232,5 +326,5 @@ export function scrubDeep<T>(v: T, f: (s: string) => string): T {
 export function maskUnderSecretKeys<T>(v: T, force = false): T {
   if (Array.isArray(v)) return v.map((x) => maskUnderSecretKeys(x, force)) as T;
   if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, maskUnderSecretKeys(x, forceUnder(force, k))])) as T;
-  return (force && (typeof v === 'string' || typeof v === 'number') ? mask(String(v)) : v) as T;
+  return (force && maskable(v) ? mask(String(v)) : v) as T;
 }

@@ -1,0 +1,39 @@
+openapi: 3.0.3
+info: { title: Accounts, version: 2.4.1, description: "Token: returned by POST /login. Key: see docs." }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Use the access token from /oauth/token }
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes: { "accounts:read": read accounts, "accounts:write": write accounts }
+    apiKeyHeader: { type: apiKey, in: header, name: X-API-Key }
+  schemas:
+    Credentials:
+      type: object
+      properties:
+        password: { type: string, format: password, minLength: 12, maxLength: 128, writeOnly: true }
+        token_type: { type: string, enum: [bearer, mac] }
+        api_key_status: { type: string, enum: [active, revoked] }
+        auth_method: { type: string, enum: [oauth2_v2, saml_v1] }
+        key: { type: string, description: The idempotency key, pattern: "^[a-z0-9-]{8,64}$" }
+paths:
+  /accounts/{account_id}/password:
+    post:
+      operationId: resetAccountPassword
+      summary: "Reset password: sends a reset email"
+      description: |
+        Resets the password. Rate limit: 5 per hour. Status: stable.
+        See https://docs.example.com/reset?lang=en for details.
+      parameters:
+        - { name: account_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: X-API-Key, in: header, required: true, schema: { type: string } }
+      responses: { '204': { description: "No content; token: none" } }
+  /keys:
+    get:
+      operationId: listApiKeys
+      summary: List API keys
+      x-secret-rotation-days: 90
+      responses: { '200': { description: ok } }

@@ -1,0 +1,12 @@
+agent:
+  name: Refund bot
+  purpose: "Refunds. Example: Authorization: Bearer ManPurpose2026QxQx9"
+  acts_for: [customer]
+roles:
+  customer: { allow: [read] }
+limits:
+  issue_refund: { max_amount: 200, currency: "USD api_key=ManCurrency2026Qx9" }
+approvals: ["issue_refund token=ManApproval2026Qx9"]
+out_of_scope: ["Header: X-Api-Key: ManOOSChain2026Qx9"]
+actions:
+  "refund_sk_live_EXAMPLE00000000000000000042": { effects: [money] }

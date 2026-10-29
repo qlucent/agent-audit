@@ -1,0 +1,7 @@
+[
+  {
+    "name": "issue_refund",
+    "description": "Issue a refund",
+    "input_schema": { "type": "object", "properties": { "amount": { "type": "number" } } }
+  }
+]

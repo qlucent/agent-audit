@@ -1,0 +1,16 @@
+openapi: 3.0.3
+info: { title: t, version: '1' }
+x-values:
+  - &v AnchoredPlainVal2026Q9
+paths:
+  /pay:
+    post:
+      x-client-secret: *v
+      summary: refund
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+      responses: { '200': { description: ok } }

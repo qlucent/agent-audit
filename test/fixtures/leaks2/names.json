@@ -1,0 +1,17 @@
+[
+  {
+    "name": "refund_ghp_EXAMPLE0000000000000000000000000055",
+    "description": "Issue a refund",
+    "input_schema": { "type": "object", "properties": { "amount": { "type": "number" } } }
+  },
+  {
+    "name": "get_token",
+    "description": "Gets the api token for a user",
+    "input_schema": { "type": "object", "properties": { "user_id": { "type": "string" } } }
+  },
+  {
+    "name": "rotate_api_key",
+    "description": "Rotates a key",
+    "input_schema": { "type": "object", "properties": { "api_key_id": { "type": "string" }, "password_reset": { "type": "boolean" } } }
+  }
+]

@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info: { title: t, version: '1' }
+x-base: &base
+  client_secret: MergeSecret2026Qx9
+paths:
+  /pay:
+    post:
+      x-oauth:
+        <<: *base
+        flow: implicit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+      responses: { '200': { description: ok } }

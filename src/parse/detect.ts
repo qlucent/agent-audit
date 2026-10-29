@@ -1,5 +1,6 @@
 import type { Action, Format, Manifest } from '../types.ts';
-import { parseText, type ParseError } from './json.ts';
+import type { Tree } from '../secrets.ts';
+import { parseText, type Doc, type ParseError } from './json.ts';
 import * as manifest from './manifest.ts';
 import * as iam from './iam.ts';
 import * as openapi from './openapi.ts';
@@ -14,6 +15,8 @@ export interface Detected {
   actions: Action[];
   manifest?: Manifest;
   error?: ParseError;
+  /** The parsed tree, for redaction. */
+  tree?: Tree;
 }
 
 /** Spec decision 8: the first full match wins; a partial or unknown shape is unrecognised (format null, no error). */
@@ -29,6 +32,10 @@ export function detect(input: { name: string; text: string }): Detected {
 function run(input: { name: string; text: string }): Detected {
   const { doc, error } = parseText(input.name, input.text);
   if (!doc) return { format: null, actions: [], ...(error && { error }) };
+  return { ...match(input, doc), tree: doc.tree };
+}
+
+function match(input: { name: string; text: string }, doc: Doc): Detected {
   const m = manifest.parse(doc);
   if (m) return { format: 'manifest', actions: [], ...m };
   const order: [Format, () => Action[] | null][] = [

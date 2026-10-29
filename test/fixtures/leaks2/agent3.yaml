@@ -1,0 +1,6 @@
+agent:
+  name: Refund bot
+  acts_for: [customer]
+roles:
+  customer: { allow: ["read", "issue_refund:<=ManRolePw2026Qx9z"] }
+out_of_scope: ["password=ManOOS2026Qx9zz"]

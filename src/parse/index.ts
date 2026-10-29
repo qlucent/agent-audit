@@ -1,3 +1,4 @@
+import type { Tree } from '../secrets.ts';
 import type { Action, FileSummary, Manifest } from '../types.ts';
 import { detect } from './detect.ts';
 
@@ -7,14 +8,17 @@ export interface ParsedInputs {
   manifest?: Manifest;
   /** Inputs recognised as MCP client configs, for mcp-audit's own audit. */
   mcpFiles: { name: string; text: string }[];
+  /** Per input, in order: its parsed tree for redaction, or null when it didn't parse. */
+  trees: (Tree | null)[];
 }
 
 /** Several files describe one agent. Actions keep their own source; effects and data are filled later. */
 export function parseInputs(inputs: { name: string; text: string }[]): ParsedInputs {
-  const out: ParsedInputs = { files: [], actions: [], mcpFiles: [] };
+  const out: ParsedInputs = { files: [], actions: [], mcpFiles: [], trees: [] };
   const firstByName = new Map<string, number>();
   for (const input of inputs) {
     const d = detect(input);
+    out.trees.push(d.tree ?? null);
     const summary: FileSummary = { file: input.name, format: d.format, actions: d.actions.length };
     if (d.error) summary.error = d.error;
     else if (!d.format) summary.unrecognised = true;

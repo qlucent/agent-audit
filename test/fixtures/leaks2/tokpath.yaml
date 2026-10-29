@@ -1,0 +1,32 @@
+openapi: 3.0.3
+info: { title: Auth, version: '1' }
+paths:
+  /oauth/token:
+    x-note: n
+    post:
+      operationId: createOAuthToken2024v2
+      summary: Exchange credentials for a token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                grant_type: { type: string, example: client_credentials }
+      responses: { '200': { description: ok } }
+  /users/{user_id}/api-key:
+    delete:
+      operationId: deleteUserApiKeyV2x9
+      parameters:
+        - { name: user_id, in: path, required: true, schema: { type: string } }
+      responses: { '204': { description: gone } }
+  /payments/{payment_id}/refund:
+    post:
+      operationId: refundPaymentV2x9Q
+      x-credentials-ref: vault/payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+      responses: { '200': { description: ok } }

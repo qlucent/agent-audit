@@ -1,0 +1,7 @@
+agent:
+  name: Refund bot
+  acts_for: [customer]
+roles:
+  customer: { allow: [read] }
+limits:
+  issue_refund: { max_amount: 200, currency: USD, api_key: ManLimitKey2026Qx9 }

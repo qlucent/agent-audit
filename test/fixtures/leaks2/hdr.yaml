@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info: { title: Clinic, version: '1' }
+paths:
+  /patients/{patient_id}:
+    get:
+      operationId: get_patient_record
+      parameters:
+        - name: Authorization
+          in: header
+          example: Basic dXNlcjpIZHJCYXNpYzIwMjZReDk=
+        - name: patient_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: X-Api-Key
+          in: header
+          schema: { type: string, example: HdrSchemaEx2026Qx9 }
+      responses: { '200': { description: ok } }
+  /refunds:
+    post:
+      description: "Example: Authorization: Bearer ChainedHdr2026QxQx9"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                amount: { type: number }
+      responses: { '200': { description: ok } }
