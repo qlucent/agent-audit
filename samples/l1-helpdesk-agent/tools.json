@@ -1,0 +1,25 @@
+{
+  "tools": [
+    {
+      "name": "get_ticket",
+      "description": "Fetch a helpdesk ticket.",
+      "inputSchema": { "type": "object", "properties": { "ticket_id": { "type": "string" } } },
+      "annotations": { "readOnlyHint": true }
+    },
+    {
+      "name": "add_ticket_comment",
+      "description": "Add a comment to a ticket.",
+      "inputSchema": { "type": "object", "properties": { "ticket_id": { "type": "string" }, "comment": { "type": "string" } } }
+    },
+    {
+      "name": "reset_user_mfa",
+      "description": "Reset multi-factor authentication for a user.",
+      "inputSchema": { "type": "object", "properties": { "user_email": { "type": "string" } } }
+    },
+    {
+      "name": "assign_role",
+      "description": "Assign a role to a user.",
+      "inputSchema": { "type": "object", "properties": { "user_email": { "type": "string" }, "role": { "type": "string" } } }
+    }
+  ]
+}

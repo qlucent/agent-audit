@@ -1,0 +1,10 @@
+agent:
+  name: Records assistant
+  purpose: Helps clinic staff and patients with appointments and records
+  domain: healthcare
+  acts_for: [patient, clinician]
+roles:
+  patient:
+    allow: ["read:appointments"]
+  clinician:
+    allow: ["read", "sendEmail"]

@@ -1,0 +1,31 @@
+openapi: 3.0.3
+info:
+  title: Clinic records API
+  version: 1.0.0
+paths:
+  /patients/{patient_id}/records:
+    get:
+      operationId: getPatientRecord
+      summary: Get a patient's clinical record
+      parameters:
+        - name: patient_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /notifications/email:
+    post:
+      operationId: sendEmail
+      summary: Send an email
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string }
+                subject: { type: string }
+                body: { type: string }
+      responses:
+        "202": { description: Accepted }

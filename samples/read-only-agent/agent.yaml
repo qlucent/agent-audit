@@ -1,0 +1,7 @@
+agent:
+  name: Catalogue lookup agent
+  purpose: Answers questions about the public product catalogue
+  acts_for: [visitor]
+roles:
+  visitor:
+    allow: ["read"]

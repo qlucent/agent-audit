@@ -1,0 +1,10 @@
+agent:
+  name: Support refund bot
+  purpose: L1 customer support for a payments app; issues refunds
+  domain: fintech
+  acts_for: [customer, support-agent]
+roles:
+  customer:
+    allow: ["read:own", "*refund*:<=50"]
+  support-agent:
+    allow: ["read", "*refund*:<=200"]

@@ -1,0 +1,39 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # npm trusted publishing (OIDC); no NPM_TOKEN
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Tag must match package version
+        run: |
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${pkg}" ]; then
+            echo "tag ${GITHUB_REF_NAME} != v${pkg}" >&2
+            exit 1
+          fi
+      - run: npm i -g npm@11.21.1 # trusted publishing needs npm >= 11.5.1
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      # Trusted publishing adds provenance itself. Pre-releases (a '-' in the version) go to the next tag.
+      - name: Publish
+        run: |
+          pkg="$(node -p "require('./package.json').version")"
+          if npm view "@qlucent/agent-audit@$pkg" version >/dev/null 2>&1; then
+            echo "@qlucent/agent-audit@$pkg is already on npm (published by hand or by an earlier run); skipping publish."
+            exit 0
+          fi
+          case "$pkg" in *-*) tag=next ;; *) tag=latest ;; esac
+          npm publish --access public --tag "$tag"

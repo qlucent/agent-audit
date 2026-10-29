@@ -1,0 +1,9 @@
+agent:
+  name: L1 helpdesk agent
+  purpose: L1 helpdesk for employees; answers questions and updates tickets
+  domain: helpdesk
+  acts_for: [employee]
+roles:
+  employee:
+    allow: ["read", "add_ticket_comment"]
+out_of_scope: [identity-admin]

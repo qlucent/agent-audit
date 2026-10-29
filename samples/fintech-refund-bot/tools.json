@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_order",
+        "description": "Look up an order by id.",
+        "parameters": { "type": "object", "properties": { "order_id": { "type": "string" } }, "required": ["order_id"] }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "issue_refund",
+        "description": "Refund an order to the original payment method.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "order_id": { "type": "string" },
+            "amount": { "type": "number", "description": "Amount to refund" },
+            "reason": { "type": "string" }
+          },
+          "required": ["order_id", "amount"]
+        }
+      }
+    }
+  ]
+}

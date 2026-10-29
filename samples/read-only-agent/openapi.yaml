@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info:
+  title: Product catalogue API
+  version: 1.0.0
+paths:
+  /products:
+    get:
+      operationId: listProducts
+      summary: List products
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 100 }
+      responses:
+        "200": { description: OK }
+  /products/{sku}:
+    get:
+      operationId: getProduct
+      summary: Get one product
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
