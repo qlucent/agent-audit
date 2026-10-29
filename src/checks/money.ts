@@ -1,5 +1,5 @@
 import type { Action, Check, CheckContext, Param } from '../types.ts';
-import { applySeverity, approved, has, limitFor, nameMatcher, paramMatcher, actionText } from './util.ts';
+import { applySeverity, approvable, approved, has, limitFor, nameMatcher, paramMatcher, actionText } from './util.ts';
 
 const MONEY_DOMAINS = ['fintech', 'ecommerce', 'finance-ops'];
 const NO_APPROVAL = 'no approval step is declared';
@@ -32,18 +32,23 @@ export const moneyNoCap: Check = (ctx, rule) => {
   });
 };
 
-/** Money action not covered by a manifest approval. One step lower when capped or when there is no manifest. */
-export const moneyNoApproval: Check = (ctx, rule) =>
-  ctx.actions.filter((a) => has(a, 'money') && !approved(ctx, a)).map((a) => ({
+/**
+ * Money action not covered by a manifest approval. One step lower when capped or when there is no manifest.
+ * A purchase is left to purchase-without-consent, the more specific finding (R11).
+ */
+export const moneyNoApproval: Check = (ctx, rule) => {
+  const buys = nameMatcher(ctx.data.lexicon.purchases);
+  return ctx.actions.filter((a) => approvable(a) && has(a, 'money') && !buys(actionText(a)) && !approved(ctx, a)).map((a) => ({
     file: a.file, loc: a.loc, action: a.name,
     severity: applySeverity(rule.severity, false, !ctx.manifest || capOf(ctx, a) !== undefined),
     detail: ctx.manifest ? `${a.name} moves money and is not listed in approvals` : `${a.name} moves money and ${NO_APPROVAL}`,
   }));
+};
 
 /** Buys, charges or subscribes on the user's behalf without an approval. */
 export const purchaseWithoutConsent: Check = (ctx, rule) => {
   const buys = nameMatcher(ctx.data.lexicon.purchases);
-  return ctx.actions.filter((a) => buys(actionText(a)) && !approved(ctx, a)).map((a) => ({
+  return ctx.actions.filter((a) => approvable(a) && buys(actionText(a)) && !approved(ctx, a)).map((a) => ({
     file: a.file, loc: a.loc, action: a.name,
     severity: applySeverity(rule.severity, false, !ctx.manifest),
     detail: ctx.manifest ? `${a.name} buys or charges for the user and is not listed in approvals` : `${a.name} buys or charges for the user and ${NO_APPROVAL}`,

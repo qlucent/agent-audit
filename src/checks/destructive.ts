@@ -1,9 +1,9 @@
 import type { Check, Hit } from '../types.ts';
-import { applySeverity, approved } from './util.ts';
+import { applySeverity, approvable, approved } from './util.ts';
 
 /** delete effect (MCP destructiveHint included, via classify) without an approval. High if bulk, one lower without a manifest. */
 export const destructiveNoApproval: Check = (ctx, rule) =>
-  ctx.actions.filter((a) => a.effects.includes('delete') && !approved(ctx, a)).map((a) => ({
+  ctx.actions.filter((a) => approvable(a) && a.effects.includes('delete') && !approved(ctx, a)).map((a) => ({
     file: a.file, loc: a.loc, action: a.name,
     severity: applySeverity(rule.severity, a.effects.includes('bulk'), !ctx.manifest),
     detail: `${a.name} deletes${a.effects.includes('bulk') ? ' in bulk' : ''} and ${ctx.manifest ? 'is not listed in approvals' : 'no approval step is declared'}`,

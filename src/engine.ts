@@ -3,7 +3,7 @@ import raw from './generated/data.json' with { type: 'json' };
 import { parseInputs } from './parse/index.ts';
 import { classify, detectDomain } from './classify.ts';
 import { checks } from './checks/index.ts';
-import type { AuditResult, CheckContext, Finding, Fixture, GeneratedData, Rule, Severity } from './types.ts';
+import type { AuditResult, CheckContext, FileSummary, Finding, Fixture, GeneratedData, Hit, Rule, Severity, Verdict } from './types.ts';
 
 export { applySeverity } from './checks/util.ts';
 
@@ -18,8 +18,12 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
   const actions = classify(parsed.actions, data, manifest);
   const ctx: CheckContext = { actions, manifest, domain: detectDomain(manifest, data), data };
 
-  const findings: Finding[] = rules.flatMap((rule) =>
-    (checks[rule.check]?.(ctx, rule) ?? []).map((h) => ({
+  // Decision 5 lists an action defined in two files twice; its findings show once unless the copies differ.
+  const dup = (h: Hit) => actions.find((a) => a.file === h.file && a.name === h.action)?.duplicateOf !== undefined;
+  const findings: Finding[] = rules.flatMap((rule) => {
+    const hits = checks[rule.check]?.(ctx, rule) ?? [];
+    const firsts = new Set(hits.filter((h) => h.action && !dup(h)).map((h) => `${h.action}|${h.severity ?? rule.severity}`));
+    return hits.filter((h) => !(h.action && dup(h) && firsts.has(`${h.action}|${h.severity ?? rule.severity}`))).map((h) => ({
       ruleId: rule.id,
       severity: h.severity ?? rule.severity,
       title: rule.title,
@@ -36,18 +40,27 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
       why: rule.why,
       fix: rule.fix,
       helpUri: `https://qlucent.com/tools/agent-audit/rules/${rule.id}`,
-    })),
-  );
+    }));
+  });
   findings.sort((a, b) =>
     ORDER.indexOf(a.severity) - ORDER.indexOf(b.severity) || a.file.localeCompare(b.file) || a.line - b.line);
 
   const { files } = parsed;
-  const why = files.map((f) => !f.error ? `${f.file} isn't recognised as an agent spec`
-    : f.actions ? `Only part of ${f.file} could be read (parse error at line ${f.error.line})`
+  const verdict = verdictFor(findings, files);
+  return { files, actions, manifest, findings, verdict, matrix: { columns: [], rows: [] }, rulesChecked: rules.length };
+}
+
+/** mcp-audit's verdict wording. Only files that yield actions count as checked: a manifest alone audits nothing. */
+export function verdictFor(findings: Finding[], files: FileSummary[]): Verdict {
+  const why = files.map((f) => f.format === 'manifest' && !f.error
+    ? `${f.file} is a manifest; add the agent's tool definitions, OpenAPI, scopes or IAM policy`
+    : !f.error ? `${f.file} isn't recognised as an agent spec`
+    : f.actions ? `Only part of ${f.file} could be read (parse error at line ${f.error.line}); none of the ${rules.length} rules matched the part that was read`
     : `${f.file} couldn't be parsed`).join('; ');
-  const recognised = files.some((f) => f.format !== null && !f.error);
-  const verdict = computeVerdict(findings, rules.length, recognised, `Couldn't check any input: ${why}`);
+  const partly = files.some((f) => f.error && f.actions);
+  const recognised = files.some((f) => f.format !== null && f.format !== 'manifest' && !f.error);
+  const verdict = computeVerdict(findings, rules.length, recognised, partly ? why : `Couldn't check any input: ${why}`);
   const broken = files.filter((f) => f.error).length;
   if (verdict.level !== 'unrecognised' && broken) verdict.text += ` (${broken} file${broken === 1 ? '' : 's'} couldn't be fully parsed)`;
-  return { files, actions, manifest, findings, verdict, matrix: { columns: [], rows: [] }, rulesChecked: rules.length };
+  return verdict;
 }

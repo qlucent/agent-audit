@@ -43,4 +43,7 @@ export function limitFor(ctx: CheckContext, a: Action): number | undefined {
   return caps.length ? Math.min(...caps) : undefined;
 }
 
+/** R10: approvals belong to the calls an agent makes, not to the scopes or IAM grants behind them. */
+export const approvable = (a: Action) => a.kind !== 'scope' && a.kind !== 'iam';
+
 export const has = (a: Action, x: string) => (a.effects as string[]).includes(x) || (a.data as string[]).includes(x);

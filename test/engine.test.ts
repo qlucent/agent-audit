@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { audit, applySeverity, rules, classify, parseInputs } from '../src/index.ts';
+import { verdictFor } from '../src/engine.ts';
 import type { Severity } from '../src/index.ts';
 
 type P = Record<string, Record<string, unknown>>;
@@ -131,4 +132,55 @@ test('result carries classified actions, files and manifest; index re-exports pa
   assert.equal(r.manifest!.agent.name, 'Bot');
   assert.equal(typeof classify, 'function');
   assert.equal(typeof parseInputs, 'function');
+});
+
+// Fix round 1
+const ids = (inputs: { name: string; text: string }[]) => audit(inputs).findings.map((f) => `${f.ruleId}:${f.server}`);
+const APPROVAL = ['money-no-approval', 'purchase-without-consent', 'destructive-no-approval'];
+
+test('R10: approval rules skip OAuth scopes and IAM statements', () => {
+  const iam = { name: 'iam.json', text: JSON.stringify({ Version: '2012-10-17', Statement: [
+    { Effect: 'Allow', Action: '*', Resource: '*' },
+    { Effect: 'Allow', Action: ['ec2:PurchaseHostReservation', 's3:DeleteObject'], Resource: '*' }] }, null, 2) };
+  const scopes = { name: 'scopes.json', text: JSON.stringify(['https://www.googleapis.com/auth/drive']) };
+  const r = audit([iam, scopes, manifest({})]);
+  assert.ok(r.actions.length >= 4);
+  assert.deepEqual(r.findings.filter((f) => APPROVAL.includes(f.ruleId)).map((f) => f.ruleId), []);
+});
+
+test('R11: a purchase gets purchase-without-consent, not also money-no-approval', () => {
+  const api = { name: 'openapi.json', text: JSON.stringify({ openapi: '3.0.3', info: { title: 'x', version: '1' }, paths: {
+    '/v1/charges': { post: { responses: { 200: { description: 'ok' } } } },
+    '/v1/checkout/sessions': { post: { responses: { 200: { description: 'ok' } } } } } }, null, 2) };
+  const got = ids([tools(['charge_saved_card', { amount: { type: 'number' } }]), api, manifest({})]);
+  for (const a of ['charge_saved_card', 'POST /v1/charges', 'POST /v1/checkout/sessions']) {
+    assert.ok(got.includes(`purchase-without-consent:${a}`), `${a}: ${got}`);
+    assert.ok(!got.includes(`money-no-approval:${a}`), `${a}: ${got}`);
+  }
+  assert.ok(got.includes('money-no-cap:charge_saved_card'));
+  assert.ok(ids([tools(['issue_refund']), manifest({})]).includes('money-no-approval:issue_refund'));
+});
+
+test('M1: an action defined in two files reports a finding once unless the copies differ', () => {
+  const a = { ...tools(['issue_refund', { amount: { type: 'number' } }]), name: 'a.json' };
+  const b = { ...tools(['issue_refund', { amount: { type: 'number' } }]), name: 'b.json' };
+  assert.equal(sev([a, b], 'money-no-cap').length, 1);
+  assert.equal(sev([a, b], 'money-no-approval').length, 1);
+  const capped = { ...tools(['issue_refund', { amount: { type: 'number', maximum: 5 } }]), name: 'b.json' };
+  assert.deepEqual(sev([a, capped, manifest({})], 'money-no-approval'), ['high', 'medium']);
+  assert.deepEqual(sev([a, capped], 'money-no-cap'), ['high']);
+});
+
+test('M3: a manifest on its own is unrecognised, not clear', () => {
+  const r = audit([{ ...manifest({}), name: 'agent.yaml' }]);
+  assert.equal(r.verdict.level, 'unrecognised');
+  assert.match(r.verdict.text, /agent\.yaml is a manifest; add the agent's tool definitions, OpenAPI, scopes or IAM policy/);
+});
+
+test('M4: a partly read file uses mcp-audit wording, without the "Couldn\'t check any input" prefix', () => {
+  const v = verdictFor([], [{ file: 'x.json', format: 'openai-tools', actions: 2, error: { message: 'e', line: 7, column: 1 } }]);
+  assert.equal(v.level, 'unrecognised');
+  assert.equal(v.text, `Only part of x.json could be read (parse error at line 7); none of the ${rules.length} rules matched the part that was read`);
+  const none = verdictFor([], [{ file: 'y.json', format: null, actions: 0, error: { message: 'e', line: 1, column: 1 } }]);
+  assert.equal(none.text, "Couldn't check any input: y.json couldn't be parsed");
 });
