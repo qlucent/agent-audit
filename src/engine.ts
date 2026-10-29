@@ -5,6 +5,8 @@ import { classify, detectDomain } from './classify.ts';
 import { checks } from './checks/index.ts';
 import { mcpEffects, mcpFindings } from './checks/mcp.ts';
 import { buildMatrix } from './scope.ts';
+import { excerpt } from './excerpt.ts';
+import { redactText, scrubber, scrubDeep } from './secrets.ts';
 import type { AuditResult, CheckContext, FileSummary, Finding, Fixture, GeneratedData, Hit, Rule, Severity, Verdict } from './types.ts';
 
 export { applySeverity } from './checks/util.ts';
@@ -13,7 +15,7 @@ const data = raw as unknown as GeneratedData;
 export const rules = data.rules as (Rule & { fixtures: { fail: Fixture[]; pass: Fixture[] } })[];
 const ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
 
-/** Several inputs describe one agent. Excerpts come with the reporters; until then `excerpt` is empty. */
+/** Several inputs describe one agent. Every secret-looking value in the result is masked (Review Focus 4). */
 export function audit(inputs: { name: string; text: string }[]): AuditResult {
   const parsed = parseInputs(inputs);
   const { manifest } = parsed;
@@ -38,7 +40,7 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
       servers: h.actions,
       field: h.field,
       evidence: h.value,
-      excerpt: [],
+      excerpt: [] as Finding['excerpt'],
       why: rule.why,
       fix: rule.fix,
       helpUri: `https://qlucent.com/tools/agent-audit/rules/${rule.id}`,
@@ -49,8 +51,19 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
     ORDER.indexOf(a.severity) - ORDER.indexOf(b.severity) || a.file.localeCompare(b.file) || a.line - b.line);
 
   const { files } = parsed;
+  // Excerpts are the redacted source lines. None for a file that failed to parse (masking can't be trusted where the
+  // structure is unknown) or for an MCP config: mcp-audit's own findings carry its stricter-masked excerpts there.
+  const redacted = new Map(inputs.map((i) => [i.name, redactText(i.text.replace(/^﻿/, ' '))]));
+  const lines = new Map<string, string[]>();
+  const noExcerpt = new Set(files.filter((f) => f.error || f.format === 'mcp-config').map((f) => f.file));
+  for (const f of findings) {
+    if (f.ruleId.startsWith('mcp/') || noExcerpt.has(f.file) || !redacted.has(f.file)) continue;
+    if (!lines.has(f.file)) lines.set(f.file, redacted.get(f.file)!.text.split('\n'));
+    f.excerpt = excerpt(lines.get(f.file)!, f.line, f.column);
+  }
   const verdict = verdictFor(findings, files);
-  return { files, actions, manifest, findings, verdict, matrix: buildMatrix(actions, manifest), rulesChecked: rules.length };
+  const result = { files, actions, manifest, findings, verdict, matrix: buildMatrix(actions, manifest), rulesChecked: rules.length };
+  return scrubDeep(result, scrubber([...redacted.values()].flatMap((r) => r.raws)));
 }
 
 /** mcp-audit's verdict wording. Only files that yield actions count as checked: a manifest alone audits nothing. */
