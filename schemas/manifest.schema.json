@@ -13,16 +13,17 @@
         "name": { "type": "string", "minLength": 1 },
         "purpose": { "type": "string" },
         "domain": { "enum": ["fintech", "healthcare", "helpdesk", "hr", "finance-ops", "ecommerce", "devops", "it-admin", "general"] },
-        "acts_for": { "type": "array", "items": { "type": "string" } }
+        "acts_for": { "type": "array", "items": { "type": "string", "not": { "const": "agent" }, "description": "agent is reserved for the matrix column" } }
       }
     },
     "roles": {
       "type": "object",
+      "propertyNames": { "not": { "const": "agent" } },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
         "required": ["allow"],
-        "properties": { "allow": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^[^ :]+(:(<=[0-9]+([.][0-9]+)?|[^ :<]+))?$", "description": "<target>[:<qualifier>]: target is an effect or an action-name glob; qualifier is own, own-<glob>, <=N or <glob>. See CONTRIBUTING." } } }
+        "properties": { "allow": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^[^ :]+(:(<=[0-9]+([.][0-9]+)?|(?!own-$)[^ :<]+))?$", "description": "<target>[:<qualifier>]: target is an effect or a glob over the full action name; qualifier is own, own-<glob>, <=N or <glob>. See CONTRIBUTING." } } }
       }
     },
     "approvals": { "type": "array", "items": { "type": "string" } },

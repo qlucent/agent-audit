@@ -7,7 +7,7 @@ why: >-
   ask the agent to do them (confused deputy). High for money, identity, health records and deletes; medium otherwise.
 fix: >-
   Check the role server-side before each action, or narrow the action (lower cap, own-records only) so it fits the
-  least-privileged role it serves. If the role should have it, add an allow entry such as `refund:<=50`.
+  least-privileged role it serves. If the role should have it, add an allow entry such as `*refund*:<=50`.
 references:
   - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
   - https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/
@@ -16,12 +16,16 @@ fixtures:
     - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number, maximum: 200 } } } }]
       manifest:
         agent: { name: Refund bot, acts_for: [customer, support-agent] }
-        roles: { customer: { allow: ["refund:<=50"] }, support-agent: { allow: ["refund:<=200"] } }
+        roles: { customer: { allow: ["*refund*:<=50"] }, support-agent: { allow: ["*refund*:<=200"] } }
+    - config: [{ name: update_ticket, input_schema: { type: object, properties: { ticket_id: { type: string } } } }]
+      manifest:
+        agent: { name: Helpdesk bot, acts_for: [employee, it-staff] }
+        roles: { employee: { allow: [read] }, it-staff: { allow: [read, write] } }
   pass:
     - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number, maximum: 40 } } } }]
       manifest:
         agent: { name: Refund bot, acts_for: [customer, support-agent] }
-        roles: { customer: { allow: ["refund:<=50"] }, support-agent: { allow: ["refund:<=200"] } }
+        roles: { customer: { allow: ["*refund*:<=50"] }, support-agent: { allow: ["*refund*:<=200"] } }
     - config: [{ name: get_store_hours, input_schema: { type: object, properties: {} } }]
       manifest:
         agent: { name: Store bot, acts_for: [customer, staff] }

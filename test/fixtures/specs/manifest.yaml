@@ -4,8 +4,8 @@ agent:
   domain: fintech
   acts_for: [customer, support-agent]
 roles:
-  customer: { allow: [read:own-orders, refund:<=50] }
-  support-agent: { allow: ["read:*", "refund:<=200", "email:send"] }
+  customer: { allow: ["read:own", "*refund*:<=50"] }
+  support-agent: { allow: ["read", "*refund*:<=200", "send_email"] }
 approvals: [issue_refund, delete_*]
 limits:
   issue_refund: { max_amount: 200, currency: USD, per_day: 20 }

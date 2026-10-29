@@ -97,7 +97,8 @@ export interface Manifest {
 /** A manifest role: `allow` entries in the grammar of src/scope.ts. */
 export interface RoleSpec { allow: string[] }
 
-export type MatrixCell = 'allowed' | 'exceeds' | 'exceeds-minor' | 'yes' | '';
+/** `declared`: granted only through an `own` entry while the action takes a free record-id param (R19). */
+export type MatrixCell = 'allowed' | 'declared' | 'exceeds' | 'exceeds-minor' | 'yes' | '';
 /**
  * Scope matrix. `roles`: columns `agent` (always `yes`) then each `acts_for` role. `effects` (no manifest or no
  * `acts_for`): columns are the effects and data classes present, `yes` where the action has one.

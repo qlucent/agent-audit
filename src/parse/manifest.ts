@@ -11,6 +11,9 @@ interface Schema {
   enum?: unknown[];
   minLength?: number;
   pattern?: string;
+  propertyNames?: Schema;
+  const?: unknown;
+  not?: Schema;
 }
 
 const typeOk = (t: string, v: unknown) =>
@@ -21,6 +24,8 @@ function validate(s: Schema, v: unknown, path: Path): [Path, string] | null {
   if (s.type && !typeOk(s.type, v)) return [path, `must be ${s.type}`];
   if (s.enum && !s.enum.includes(v)) return [path, `must be one of: ${s.enum.join(', ')}`];
   if (s.minLength !== undefined && typeof v === 'string' && v.length < s.minLength) return [path, 'must not be empty'];
+  if (s.const !== undefined && v !== s.const) return [path, `must be ${JSON.stringify(s.const)}`];
+  if (s.not && !validate(s.not, v, path)) return [path, `must not be ${JSON.stringify(s.not.const)}`];
   if (s.pattern && typeof v === 'string' && !new RegExp(s.pattern).test(v)) return [path, `must match ${s.pattern}`];
   if (Array.isArray(v) && s.items) {
     for (let i = 0; i < v.length; i++) {
@@ -30,6 +35,10 @@ function validate(s: Schema, v: unknown, path: Path): [Path, string] | null {
   }
   if (isObj(v)) {
     for (const k of s.required ?? []) if (!(k in v)) return [path, `must have property ${k}`];
+    if (s.propertyNames) for (const k of Object.keys(v)) {
+      const e = validate(s.propertyNames, k, [...path, k]);
+      if (e) return e;
+    }
     for (const [k, val] of Object.entries(v)) {
       const sub = s.properties?.[k] ?? s.additionalProperties;
       if (sub === false) return [[...path, k], 'is not allowed'];

@@ -76,7 +76,7 @@ test('purchase-without-consent: high with manifest, medium without, none when ap
   assert.deepEqual(sev([tools(['get_purchase_history'])], 'purchase-without-consent'), []);
 });
 
-test('unscoped-record-access: phi critical, pii high, one step lower without a manifest, own-scoped role clears it', () => {
+test('unscoped-record-access: phi critical, pii high, one step lower without a manifest, own-declared role low', () => {
   const phi = tools(['get_patient_record', { patient_id: { type: 'string' } }]);
   const pii = tools(['get_customer', { customer_id: { type: 'string' } }]);
   assert.deepEqual(sev([phi, manifest({})], 'unscoped-record-access'), ['critical']);
@@ -84,7 +84,7 @@ test('unscoped-record-access: phi critical, pii high, one step lower without a m
   assert.deepEqual(sev([pii, manifest({})], 'unscoped-record-access'), ['high']);
   assert.deepEqual(sev([pii], 'unscoped-record-access'), ['medium']);
   const own = manifest({ agent: { name: 'B', acts_for: ['customer'] }, roles: { customer: { allow: ['read:own-*'] } } });
-  assert.deepEqual(sev([pii, own], 'unscoped-record-access'), []);
+  assert.deepEqual(sev([pii, own], 'unscoped-record-access'), ['low']);
   assert.deepEqual(sev([tools(['get_order_status', { order_id: { type: 'string' } }]), manifest({})], 'unscoped-record-access'), []);
 });
 

@@ -95,7 +95,7 @@ test('manifest (YAML) is validated and returned', () => {
   const r = one('manifest.yaml');
   assert.deepEqual(r.files, [{ file: 'manifest.yaml', format: 'manifest', actions: 0 }]);
   assert.equal(r.manifest?.agent.name, 'Support refund bot');
-  assert.deepEqual(r.manifest?.roles?.customer?.allow, ['read:own-orders', 'refund:<=50']);
+  assert.deepEqual(r.manifest?.roles?.customer?.allow, ['read:own', '*refund*:<=50']);
   assert.equal(r.manifest?.limits?.issue_refund?.max_amount, 200);
 });
 
