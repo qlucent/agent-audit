@@ -25,6 +25,8 @@ export function toTable(result: AuditResult, useColor = false): string {
     const sev = f.severity.toUpperCase().padEnd(8);
     const who = actionsOf(f);
     out.push(`${useColor ? `\x1b[${color[f.severity]}m${sev}\x1b[0m` : sev} ${clean(f.file)}:${f.line}  ${f.ruleId}  ${clean(f.title)}${who ? ` (${clean(who)})` : ''}`);
+    // The detail says what exactly (for exceeds-role, which role), so two lines for one action can be told apart (I1).
+    if (f.detail) out.push(`${' '.repeat(9)}${clean(f.detail)}`);
     out.push(`${' '.repeat(9)}${f.helpUri}`);
   }
   for (const f of result.files) {

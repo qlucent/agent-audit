@@ -92,7 +92,7 @@ test('markdown matrix legend and cells; effects mode without a manifest', () => 
   const roles = toMarkdown(audit([tools([refund]), { name: 'agent.json', text: JSON.stringify({ agent: { name: 'B', acts_for: ['customer'] }, roles: { customer: { allow: ['read'] } } }) }]));
   assert.ok(roles.includes('| Action | agent | customer |'), roles);
   assert.ok(roles.includes('Legend: allowed · exceeds · exceeds-minor · declared'), roles);
-  assert.ok(/\| Issue refund \| yes \| \*\*exceeds\*\* \|/.test(roles), roles);
+  assert.ok(/\| Issue refund \(issue\\_refund\) \| yes \| \*\*exceeds\*\* \|/.test(roles), roles);
 });
 
 test('markdown escapes spec text and cannot be broken out of', () => {
@@ -117,6 +117,13 @@ test('markdown lists unrecognised and unparsable files', () => {
   assert.ok(md.includes("Couldn't parse b.json"), md);
 });
 
+test('table names the role of each exceeds-role line (I1)', () => {
+  const r = audit([tools([refund]), { name: 'agent.json', text: JSON.stringify({ agent: { name: 'B', acts_for: ['customer', 'clerk', 'admin'] }, roles: { customer: { allow: ['read'] }, clerk: { allow: ['read'] }, admin: { allow: ['issue_refund'] } } }) }]);
+  const lines = toTable(r).split('\n');
+  for (const role of ['customer', 'clerk'])
+    assert.ok(lines.some((l, i) => l.includes('exceeds-role') && lines[i + 1]!.includes(`Acting for ${role}`)), `${role}: ${lines.join('\n')}`);
+});
+
 test('table labels action names and lists the rule URL', () => {
   const t = toTable(base);
   assert.ok(t.includes('(action: issue\_refund)'), t);
@@ -127,4 +134,4 @@ test('table labels action names and lists the rule URL', () => {
   assert.ok(many.includes('(actions: a, b)'), many);
 });
 
-const SNAPSHOT = "# AI agent permission audit\n\n**Review before rollout: 1 low**\n\n## Inventory\n\n| Action | Kind | Effects | Data | Where | Note |\n| --- | --- | --- | --- | --- | --- |\n| Get order (get\\_order) | tool | read | | tools.json:3:5 | declared |\n| Tag ticket (tag\\_ticket) | tool | | | tools.json:15:5 | unclassified |\n\n## Findings\n\n| Severity | Rule | Action | Location |\n| --- | --- | --- | --- |\n| low | unclassified-action | tag\\_ticket | tools.json:15:5 |\n\n### LOW: Actions with no recognised effect\n\ntools.json:15:5 · [unclassified-action](https://qlucent.com/tools/agent-audit/rules/unclassified-action)\n\nAction: tag\\_ticket\n\n1 action with no recognised effect: tag\\_ticket\n\n```\n  13:   },\n  14:   {\n> 15:     \"name\": \"tag_ticket\",\n  16:     \"description\": \"\",\n  17:     \"input_schema\": {\n```\n\n**Why it matters**\n\nThese actions are not read-only by HTTP method or annotation, and their names matched nothing the auditor knows, so no other rule could check them. They may move money, change accounts or delete data.\n\n**Fix**\n\n```\nReview each action and declare what it does in the manifest (`actions: { frobnicate_widget: { effects: [write] } }`), or rename it to say what it does.\n```\n\n## Permission matrix\n\nWhat the agent can do, compared with each role it acts for. Legend: allowed · exceeds · exceeds-minor · declared (exceeds-minor: a plain read the role lacks; declared: granted only by an own-records entry the spec cannot verify).\n\n| Action | agent | customer |\n| --- | --- | --- |\n| Get order | yes | allowed |\n| Tag ticket | yes | exceeds-minor |\n";
+const SNAPSHOT = "# AI agent permission audit\n\n**Review before rollout: 1 low**\n\n## Inventory\n\n| Action | Kind | Effects | Data | Where | Note |\n| --- | --- | --- | --- | --- | --- |\n| Get order (get\\_order) | tool | read | | tools.json:3:5 | declared |\n| Tag ticket (tag\\_ticket) | tool | | | tools.json:15:5 | unclassified |\n\n## Findings\n\n| Severity | Rule | Action | Location |\n| --- | --- | --- | --- |\n| low | unclassified-action | tag\\_ticket | tools.json:15:5 |\n\n### LOW: Actions with no recognised effect\n\ntools.json:15:5 · [unclassified-action](https://qlucent.com/tools/agent-audit/rules/unclassified-action)\n\nAction: tag\\_ticket\n\n1 action with no recognised effect: tag\\_ticket\n\n```\n  13:   },\n  14:   {\n> 15:     \"name\": \"tag_ticket\",\n  16:     \"description\": \"\",\n  17:     \"input_schema\": {\n```\n\n**Why it matters**\n\nThese actions are not read-only by HTTP method or annotation, and their names matched nothing the auditor knows, so no other rule could check them. They may move money, change accounts or delete data.\n\n**Fix**\n\n```\nReview each action and declare what it does in the manifest (`actions: { frobnicate_widget: { effects: [write] } }`), or rename it to say what it does.\n```\n\n## Permission matrix\n\nWhat the agent can do, compared with each role it acts for. Legend: allowed · exceeds · exceeds-minor · declared (exceeds-minor: a plain read the role lacks; declared: granted only by an own-records entry the spec cannot verify).\n\n| Action | agent | customer |\n| --- | --- | --- |\n| Get order (get\\_order) | yes | allowed |\n| Tag ticket (tag\\_ticket) | yes | exceeds-minor |\n";

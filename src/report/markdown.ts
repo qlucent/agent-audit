@@ -16,6 +16,10 @@ const CELL: Record<MatrixCell, string> = {
   allowed: 'allowed', declared: 'declared', exceeds: '**exceeds**', 'exceeds-minor': 'exceeds-minor', yes: 'yes', '': '',
 };
 
+/** `Label (name)`; an MCP server by name only, since its label is a catalogue sentence (M5). */
+const actionName = (a: Action | undefined, label: string) =>
+  !a ? esc(label) : a.kind === 'mcp-server' || !a.label || a.label === a.name ? esc(a.name) : `${esc(a.label)} (${esc(a.name)})`;
+
 function note(a: Action, all: Action[]): string {
   const n: string[] = [];
   if (a.evidence.some((e) => e.via === 'declared')) n.push('declared');
@@ -37,8 +41,7 @@ export function toMarkdown(result: AuditResult): string {
   if (actions.length) {
     out.push('## Inventory', '', ...head(['Action', 'Kind', 'Effects', 'Data', 'Where', 'Note']));
     for (const a of actions) {
-      const name = a.label && a.label !== a.name ? `${esc(a.label)} (${esc(a.name)})` : esc(a.name);
-      out.push(row([name, a.kind, a.effects.join(', '), a.data.join(', '), `${esc(a.file)}:${a.loc.line}:${a.loc.column}`, note(a, actions)]));
+      out.push(row([actionName(a, a.label), a.kind, a.effects.join(', '), a.data.join(', '), `${esc(a.file)}:${a.loc.line}:${a.loc.column}`, note(a, actions)]));
     }
     out.push('');
   }
@@ -66,7 +69,8 @@ export function toMarkdown(result: AuditResult): string {
         '(exceeds-minor: a plain read the role lacks; declared: granted only by an own-records entry the spec cannot verify).'
       : 'Effects of each action. Add a manifest with `acts_for` roles to compare the agent with the people it acts for.', '');
     out.push(...head(['Action', ...matrix.columns.map(esc)]));
-    for (const r of matrix.rows) out.push(row([esc(r.label), ...r.cells.map((c) => CELL[c])]));
+    const byId = new Map(actions.map((a) => [a.id, a]));
+    for (const r of matrix.rows) out.push(row([actionName(byId.get(r.actionId), r.label), ...r.cells.map((c) => CELL[c])]));
     out.push('');
   }
   return out.join('\n');

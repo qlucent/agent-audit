@@ -15,7 +15,7 @@ export interface Doc {
 export const isObj = (v: unknown): v is Record<string, any> => typeof v === 'object' && v !== null && !Array.isArray(v);
 export const get = (v: unknown, path: Path): any => path.reduce<any>((o, k) => (o == null ? undefined : o[k]), v);
 
-const looksJson = (name: string, text: string) => !/\.ya?ml$/i.test(name) && /^\s*[[{/]/.test(text);
+export const looksJson = (name: string, text: string) => !/\.ya?ml$/i.test(name) && /^\s*[[{/]/.test(text);
 
 export function parseText(name: string, raw: string): { doc?: Doc; error?: ParseError } {
   // A leading BOM becomes a space, as in mcp-audit, so offsets match its locations.
