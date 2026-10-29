@@ -35,6 +35,8 @@ export interface Action {
   /** IAM statement Resource (normalised to a list) and Condition. */
   resource?: string[];
   condition?: Record<string, unknown>;
+  /** IAM Allow + NotAction: the statement grants every action except these. */
+  notAction?: string[];
   effects: Effect[];
   data: DataClass[];
   evidence: Evidence[];

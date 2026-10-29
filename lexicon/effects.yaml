@@ -136,6 +136,14 @@
   nouns:
     - "mfa tokens?|otp tokens?"
   not_patterns: *id_not
+# IAM-style policy changes on a user, role or group (AttachUserPolicy, put_role_policy). Not insurance policies:
+# the noun needs the user/role/group/iam qualifier.
+- effect: identity-admin
+  verbs:
+    - "attach|detach|put"
+  nouns:
+    - "(user|role|group|iam|managed|inline) polic(y|ies)"
+  not_patterns: *id_not
 - effect: identity-admin
   name_patterns:
     - "impersonate"

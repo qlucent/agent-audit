@@ -16,8 +16,9 @@ for (const r of rules) {
 }
 
 test('every named check is registered', () => assert.deepEqual(Object.keys(checks).sort(), [...KNOWN_CHECKS].sort()));
-test('batch A rules are present', () => {
+test('batch A and B rules are present', () => {
   const ids = rules.map((r) => r.id);
   for (const id of ['money-no-cap', 'money-no-approval', 'purchase-without-consent', 'unscoped-record-access',
-    'identity-admin-action', 'destructive-no-approval', 'unclassified-action']) assert.ok(ids.includes(id), id);
+    'identity-admin-action', 'destructive-no-approval', 'unclassified-action', 'external-send-sensitive', 'code-exec-action',
+    'bulk-export', 'broad-oauth-scope', 'iam-wildcard', 'no-manifest']) assert.ok(ids.includes(id), id);
 });

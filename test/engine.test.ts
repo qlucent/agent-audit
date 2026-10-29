@@ -112,14 +112,18 @@ test('declared effects in the manifest drive the rules', () => {
 });
 
 test('verdict tiers and texts match mcp-audit', () => {
-  const clear = audit([tools(['get_widget'])]);
+  // No manifest adds one low no-manifest finding: review, still not "not ready".
+  const bare = audit([tools(['get_widget'])]);
+  assert.equal(bare.verdict.level, 'review');
+  assert.deepEqual(bare.findings.map((f) => `${f.ruleId}:${f.severity}`), ['no-manifest:low']);
+  const clear = audit([tools(['get_widget']), manifest({})]);
   assert.equal(clear.verdict.level, 'clear');
   assert.equal(clear.verdict.text, `None of the ${rules.length} rules matched this config`);
   assert.equal(clear.rulesChecked, rules.length);
   assert.deepEqual(clear.matrix, { columns: [], rows: [] });
   const review = audit([tools(['delete_document'])]);
   assert.equal(review.verdict.level, 'review');
-  assert.match(review.verdict.text, /^Review before rollout: 1 low/);
+  assert.match(review.verdict.text, /^Review before rollout: 2 low/);
   const none = audit([{ name: 'x.json', text: '{"hello": 1}' }]);
   assert.equal(none.verdict.level, 'unrecognised');
   assert.match(none.verdict.text, /x\.json/);

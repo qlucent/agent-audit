@@ -34,6 +34,10 @@
 - { pattern: "iam:Add*", label: "Add IAM users to groups or roles to profiles", effects: [write, identity-admin] }
 - { pattern: "iam:Remove*", label: "Remove IAM group members or profile roles", effects: [write, identity-admin] }
 - { pattern: "iam:SetDefaultPolicyVersion", label: "Switch an IAM policy version", effects: [write, identity-admin] }
+- { pattern: "iam:AttachUserPolicy", label: "Attach a managed policy to an IAM user", effects: [write, identity-admin] }
+- { pattern: "iam:AttachRolePolicy", label: "Attach a managed policy to an IAM role", effects: [write, identity-admin] }
+- { pattern: "iam:PutUserPolicy", label: "Write an inline policy on an IAM user", effects: [write, identity-admin] }
+- { pattern: "iam:PutRolePolicy", label: "Write an inline policy on an IAM role", effects: [write, identity-admin] }
 - { pattern: "iam:PassRole", label: "Pass an IAM role to a service", effects: [identity-admin] }
 - { pattern: "iam:CreateAccessKey", label: "Create IAM access keys", effects: [write, identity-admin], data: [credentials] }
 - { pattern: "iam:CreateUser", label: "Create IAM users", effects: [write, identity-admin] }

@@ -1,0 +1,19 @@
+id: code-exec-action
+title: Can run code or commands
+severity: high
+check: code-exec-action
+why: >-
+  The agent can run shell commands, evaluate code, run raw SQL or deploy. Whoever can steer the agent, including text
+  it reads, can run anything that action allows, with the agent's credentials.
+fix: >-
+  Replace the general action with narrow, parameterised ones (a fixed query with typed parameters, a named runbook).
+  If it must stay, run it in a sandbox with no credentials or network, and require an approval.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://cwe.mitre.org/data/definitions/94.html
+fixtures:
+  fail:
+    - config: [{ name: run_sql, input_schema: { type: object, properties: { query: { type: string } } } }]
+    - config: [{ name: execute_shell_command, input_schema: { type: object, properties: { cmd: { type: string } } } }]
+  pass:
+    - config: [{ name: get_order_status, input_schema: { type: object, properties: { order_id: { type: string } } } }]

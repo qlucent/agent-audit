@@ -1,0 +1,19 @@
+id: broad-oauth-scope
+title: Broad OAuth scope
+severity: medium
+check: broad-oauth-scope
+why: >-
+  The scope gives access to all of the user's (or the tenant's) data of that kind, not only what the agent needs. High
+  when the scope can send as the user, administer users or groups, or run code.
+fix: >-
+  Request the narrowest scope that works, for example Google `drive.file` instead of `drive`, a per-user Graph
+  permission instead of `*.All`, or a fine-grained GitHub token instead of `repo`.
+references:
+  - https://datatracker.ietf.org/doc/html/rfc9700
+  - https://developers.google.com/identity/protocols/oauth2/scopes
+fixtures:
+  fail:
+    - config: ["https://www.googleapis.com/auth/drive"]
+    - config: ["https://www.googleapis.com/auth/gmail.send"]
+  pass:
+    - config: ["https://www.googleapis.com/auth/drive.file"]

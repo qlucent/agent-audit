@@ -1,0 +1,20 @@
+id: bulk-export
+title: Can export or list records in bulk
+severity: medium
+check: bulk-export
+why: >-
+  The agent can export or list records in bulk, either on sensitive data or with no upper bound on how many come back
+  in one call. One steered call can pull a whole table.
+fix: >-
+  Add a limit parameter with a schema `maximum`, page results, and keep bulk exports of personal, health or financial
+  data out of the agent.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/
+fixtures:
+  fail:
+    - config: [{ name: export_all_customers, input_schema: { type: object, properties: {} } }]
+    - config: [{ name: export_orders, input_schema: { type: object, properties: { limit: { type: integer } } } }]
+  pass:
+    - config: [{ name: export_orders, input_schema: { type: object, properties: { limit: { type: integer, maximum: 100 } } } }]
+    - config: [{ name: get_order, input_schema: { type: object, properties: { order_id: { type: string } } } }]

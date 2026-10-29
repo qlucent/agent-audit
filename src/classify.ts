@@ -85,8 +85,7 @@ export function classify(actions: Action[], data: GeneratedData = DEFAULT, manif
         ],
       };
     }
-    // ponytail: mcp-server effects come from mcp-audit (see classifyLexicon), so servers are never marked unclassified.
-    if (!a.effects.length && a.kind !== 'mcp-server' && !hits.some((d) => d.effects)) a.unclassified = true;
+    if (!a.effects.length && !hits.some((d) => d.effects)) a.unclassified = true;
     return a;
   });
 }
@@ -122,6 +121,13 @@ function classifyLexicon(actions: Action[], data: GeneratedData): Action[] {
       }
       return a;
     }
+    if (a.kind === 'iam' && a.notAction) {
+      // Everything except the listed patterns: every catalogue entry they do not cover (`*` itself left out).
+      const not = a.notAction.map(glob);
+      a.label = `Every action except ${a.notAction.join(', ')}`;
+      for (const e of iam) if (e.pattern !== '*' && !not.some((n) => n.test(e.pattern))) fromCatalog(`${e.label} (not excluded by NotAction)`, e.effects, e.data);
+      return a;
+    }
     if (a.kind === 'iam') {
       const name = a.name.toLowerCase();
       const pre = glob(a.name);
@@ -137,8 +143,8 @@ function classifyLexicon(actions: Action[], data: GeneratedData): Action[] {
       }
       return a;
     }
-    // ponytail: mcp-server effects come from mcp-audit's mixes (spec decision 3), wired with the MCP pass-through.
-    if (a.kind === 'mcp-server') return a;
+    // mcp-server effects come from mcp-audit's mixes (spec decision 3, checks/mcp.ts), set before classify.
+    if (a.kind === 'mcp-server') return { ...a0 };
 
     if (a.kind === 'tool' && a.label === a.name) a.label = humanise(a.name);
     // Endpoints: method, operationId and path (file extensions dropped) together, e.g. "post create user rest api 3 user".

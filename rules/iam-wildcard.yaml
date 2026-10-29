@@ -1,0 +1,22 @@
+id: iam-wildcard
+title: Wildcard AWS IAM grant
+severity: high
+check: iam-wildcard
+why: >-
+  The policy allows every action (`*`, or NotAction "everything except"), writes or deletes on every resource, or
+  passing or assuming roles on any role. Anyone who can steer the agent gets that reach in the AWS account. Critical
+  for every action on every resource.
+fix: >-
+  List the exact actions the agent needs and scope Resource to specific ARNs. Limit `iam:PassRole` and
+  `sts:AssumeRole` to named roles, and add Conditions where possible.
+references:
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_notaction.html
+fixtures:
+  fail:
+    - config: { Version: "2012-10-17", Statement: [{ Effect: Allow, Action: "*", Resource: "*" }] }
+    - config: { Version: "2012-10-17", Statement: [{ Effect: Allow, Action: "iam:PassRole", Resource: "*" }] }
+    - config: { Version: "2012-10-17", Statement: [{ Effect: Allow, NotAction: "iam:*", Resource: "*" }] }
+  pass:
+    - config: { Version: "2012-10-17", Statement: [{ Effect: Allow, Action: "s3:GetObject", Resource: "*" }] }
+    - config: { Version: "2012-10-17", Statement: [{ Effect: Allow, Action: "s3:PutObject", Resource: "arn:aws:s3:::example-bucket/*" }] }

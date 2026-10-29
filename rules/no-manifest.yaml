@@ -1,0 +1,18 @@
+id: no-manifest
+title: No agent manifest
+severity: low
+check: no-manifest
+why: >-
+  Without a manifest the audit cannot compare what the agent can do with the roles it acts for, its approvals or its
+  limits. Approval-based findings are reported one level lower because an approval may exist in code.
+fix: >-
+  Add an agent manifest (`agent:`, `roles:`, `approvals:`, `limits:`, `out_of_scope:`) next to the spec. See
+  CONTRIBUTING.md for the format.
+references:
+  - https://github.com/qlucent/agent-audit#agent-manifest
+fixtures:
+  fail:
+    - config: [{ name: get_widget, input_schema: { type: object, properties: {} } }]
+  pass:
+    - config: [{ name: get_widget, input_schema: { type: object, properties: {} } }]
+      manifest: { agent: { name: Widget bot } }

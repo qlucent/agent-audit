@@ -14,19 +14,27 @@ export function parse(doc: Doc, file: string): Action[] | null {
   if (!stmts.every(valid)) return null;
   const out: Action[] = [];
   stmts.forEach((s, i) => {
-    // ponytail: Allow + NotAction ("everything except") is skipped; add when a rule needs it.
-    if (!valid(s) || s.Effect !== 'Allow' || !('Action' in s)) return;
+    if (!valid(s) || s.Effect !== 'Allow') return;
     const sp = many ? ['Statement', i] : ['Statement'];
+    const common = {
+      kind: 'iam' as const,
+      ...(typeof s.Sid === 'string' && { description: s.Sid }),
+      resource: list(s.Resource).filter((r): r is string => typeof r === 'string'),
+      ...(isObj(s.Condition) && { condition: s.Condition }),
+    };
+    if (!('Action' in s)) {
+      // Allow + NotAction grants every action except the listed ones: one broad action for the statement.
+      const notAction = list(s.NotAction).filter((x): x is string => typeof x === 'string');
+      out.push(action(file, doc.loc([...sp, 'NotAction']), { name: `NotAction ${notAction.join(', ')}`, notAction, ...common }));
+      return;
+    }
     const arr = Array.isArray(s.Action);
     list(s.Action).forEach((pattern, j) => {
       if (typeof pattern !== 'string') return;
       out.push(
         action(file, doc.loc(arr ? [...sp, 'Action', j] : [...sp, 'Action'], false), {
           name: pattern,
-          kind: 'iam',
-          ...(typeof s.Sid === 'string' && { description: s.Sid }),
-          resource: list(s.Resource).filter((r): r is string => typeof r === 'string'),
-          ...(isObj(s.Condition) && { condition: s.Condition }),
+          ...common,
         }),
       );
     });

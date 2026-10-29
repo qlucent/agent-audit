@@ -1,0 +1,31 @@
+id: external-send-sensitive
+title: Can send sensitive data out
+severity: medium
+check: external-send-sensitive
+why: >-
+  The agent can read sensitive data (health records, personal identifiers, financial data or credentials) and can also
+  send to a destination it chooses (an email recipient, URL or webhook). A prompt injection in anything it reads can
+  make it send that data out. Only strong evidence counts: a sensitive parameter name, an explicit description phrase
+  or a declared data class on one side, a free destination on the other. High for health data or credentials, or in a
+  healthcare or fintech agent.
+fix: >-
+  Restrict the send to fixed or allow-listed recipients, require an approval before sending, or split reading and
+  sending into separate agents. Strip or redact sensitive fields before they reach the send action.
+references:
+  - https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/
+  - https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+fixtures:
+  fail:
+    - config:
+        - { name: send_email, input_schema: { type: object, properties: { to: { type: string }, body: { type: string } } } }
+        - { name: get_patient_record, input_schema: { type: object, properties: { patient_id: { type: string } } } }
+    - config:
+        - { name: post_webhook, input_schema: { type: object, properties: { webhook_url: { type: string } } } }
+        - { name: lookup_person, input_schema: { type: object, properties: { ssn: { type: string } } } }
+  pass:
+    - config:
+        - { name: send_email, input_schema: { type: object, properties: { to: { type: string }, body: { type: string } } } }
+        - { name: get_customer, input_schema: { type: object, properties: { id: { type: string } } } }
+    - config:
+        - { name: send_reminder, input_schema: { type: object, properties: { appointment_id: { type: string } } } }
+        - { name: get_patient_record, input_schema: { type: object, properties: { patient_id: { type: string } } } }

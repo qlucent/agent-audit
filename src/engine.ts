@@ -3,6 +3,7 @@ import raw from './generated/data.json' with { type: 'json' };
 import { parseInputs } from './parse/index.ts';
 import { classify, detectDomain } from './classify.ts';
 import { checks } from './checks/index.ts';
+import { mcpEffects, mcpFindings } from './checks/mcp.ts';
 import type { AuditResult, CheckContext, FileSummary, Finding, Fixture, GeneratedData, Hit, Rule, Severity, Verdict } from './types.ts';
 
 export { applySeverity } from './checks/util.ts';
@@ -15,7 +16,7 @@ const ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
 export function audit(inputs: { name: string; text: string }[]): AuditResult {
   const parsed = parseInputs(inputs);
   const { manifest } = parsed;
-  const actions = classify(parsed.actions, data, manifest);
+  const actions = classify(mcpEffects(parsed.actions, parsed.mcpFiles), data, manifest);
   const ctx: CheckContext = { actions, manifest, domain: detectDomain(manifest, data), data };
 
   // Decision 5 lists an action defined in two files twice; its findings show once unless the copies differ.
@@ -42,6 +43,7 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
       helpUri: `https://qlucent.com/tools/agent-audit/rules/${rule.id}`,
     }));
   });
+  findings.push(...mcpFindings(parsed.mcpFiles));
   findings.sort((a, b) =>
     ORDER.indexOf(a.severity) - ORDER.indexOf(b.severity) || a.file.localeCompare(b.file) || a.line - b.line);
 

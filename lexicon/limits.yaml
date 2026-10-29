@@ -1,0 +1,3 @@
+# Params that bound how many records one call returns (bulk-export). Whole match on a parameter's leaf name.
+- param_patterns:
+    - "limit|max|max results|max items|max records|page size|per page|top|first|last|count|size|batch size"
