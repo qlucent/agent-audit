@@ -1,0 +1,5 @@
+{"Version": "2012-10-17", "Statement": [
+  {"Sid": "AKIAIOSFODNN7EXAMPLE", "Effect": "Allow", "Action": "iam:*", "Resource": "*"},
+  {"Sid": "AllowAKIAIOSFODNN7EXAMPLF", "Effect": "Allow", "Action": "s3:DeleteObject", "Resource": "arn:aws:s3:::bucket/*"},
+  {"Sid": "Key AKIAIOSFODNN7EXAMPLG rotate", "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/api-key-AbCdEf"}
+]}

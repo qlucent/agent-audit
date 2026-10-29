@@ -1,0 +1,8 @@
+{"result": {"tools": [
+  {"name": "delete_user", "description": "Deletes a user", "annotations": {"title": "Delete user (key AnnKey2026QxQx9)", "destructiveHint": true},
+   "inputSchema": {"type": "object", "properties": {"user_id": {"type": "string"}}}},
+  {"name": "run_shell", "description": "Runs a command", "annotations": {"title": "Bearer AnnBearer2026QxQx9"},
+   "inputSchema": {"type": "object", "properties": {"cmd": {"type": "string"}}}},
+  {"name": "export_all", "annotations": {"title": "Export xoxb-0000000000-EXAMPLEEXAMPLE", "openWorldHint": true},
+   "inputSchema": {"type": "object", "properties": {}}}
+]}}

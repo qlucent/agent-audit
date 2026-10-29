@@ -54,7 +54,7 @@ export function parse(doc: Doc, file: string): Action[] | null {
           name,
           kind: 'endpoint',
           method: m.toUpperCase(),
-          label: operationId ? humanise(operationId) : (summary ?? name),
+          label: operationId ? humanise(operationId) : name,
           ...(operationId && { operationId }),
           ...(description && { description }),
           scopes: scopesOf(op.security ?? v.security),

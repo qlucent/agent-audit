@@ -61,7 +61,7 @@ test('OpenAPI 3 (YAML): METHOD /path actions, operationId label, per-operation s
   const [list, create, del] = r.actions as [any, any, any];
   assert.deepEqual([list.kind, list.method, list.operationId, list.label], ['endpoint', 'GET', 'listRefunds', 'List refunds']);
   assert.equal(create.label, 'Create refund');
-  assert.equal(del.label, 'Delete a customer');
+  assert.equal(del.label, 'DELETE /customers/{customer_id}');
   assert.deepEqual(list.scopes, ['payments.read']);
   assert.deepEqual(create.scopes, ['payments.write', 'refunds.create']);
   assert.deepEqual(list.params.map((p: any) => [p.name, p.type, p.maximum, p.loc.line, p.loc.column]), [['limit', 'integer', 500, 13, 11]]);

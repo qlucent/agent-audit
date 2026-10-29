@@ -6,7 +6,7 @@ import { checks } from './checks/index.ts';
 import { mcpEffects, mcpFindings } from './checks/mcp.ts';
 import { buildMatrix } from './scope.ts';
 import { excerpt } from './excerpt.ts';
-import { maskUnderSecretKeys, redactFile, redactFree, scrubber, scrubDeep } from './secrets.ts';
+import { HIDDEN_TEXT, maskUnderSecretKeys, redactFile, redactFree, scrubber, scrubDeep } from './secrets.ts';
 import { humanise } from './parse/json.ts';
 import type { AuditResult, CheckContext, FileSummary, Finding, Fixture, GeneratedData, Hit, Rule, Severity, Verdict } from './types.ts';
 
@@ -67,9 +67,12 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
     const id = a.operationId ?? a.name;
     // A label built from a name holding a token (lowercased, split) would slip past the final pass: rebuild it (N6).
     const label = redactFree(id) !== id ? humanise(redactFree(id)) : a.label;
-    return { ...a, label, ...(a.condition && { condition: maskUnderSecretKeys(a.condition) }) };
+    // R22: free text is never output; classification has already read the description.
+    const { description: _, ...rest } = a;
+    return { ...rest, label, ...(a.condition && { condition: maskUnderSecretKeys(a.condition) }) };
   });
-  const result = { files, actions: shown, manifest, findings, verdict, matrix: buildMatrix(shown, manifest), rulesChecked: rules.length };
+  const shownManifest = manifest?.agent.purpose === undefined ? manifest : { ...manifest, agent: { ...manifest.agent, purpose: HIDDEN_TEXT } };
+  const result = { files, actions: shown, manifest: shownManifest, findings, verdict, matrix: buildMatrix(shown, manifest), rulesChecked: rules.length };
   return scrubDeep(result, scrubber([...redacted.values()].flatMap((r) => r.raws)));
 }
 

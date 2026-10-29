@@ -20,9 +20,13 @@ export const get = (v: unknown, path: Path): any => path.reduce<any>((o, k) => (
 
 export const looksJson = (name: string, text: string) => !/\.ya?ml$/i.test(name) && /^\s*[[{/]/.test(text);
 
+/** A leading BOM becomes a space in JSON, as in mcp-audit, so offsets match its locations; YAML drops it, since a
+ * space there would indent the first key (R6). */
+export const bomless = (name: string, raw: string) =>
+  !raw.startsWith('﻿') ? raw : looksJson(name, raw.slice(1)) ? ' ' + raw.slice(1) : raw.slice(1);
+
 export function parseText(name: string, raw: string): { doc?: Doc; error?: ParseError } {
-  // A leading BOM becomes a space, as in mcp-audit, so offsets match its locations.
-  const text = raw.replace(/^﻿/, ' ');
+  const text = bomless(name, raw);
   const lc = new LineCounter();
   const at = (offset: number, length: number): Loc => {
     const { line, col } = lc.linePos(offset);

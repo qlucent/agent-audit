@@ -1,0 +1,8 @@
+{"tools": [{"type": "function", "function": {"name": "send_email",
+  "description": "Send an email. Example call: {\"api_key\": \"OaiDescKey2026Qx9\"}. Authenticate with `x-api-key: OaiInline2026Qx9`.",
+  "parameters": {"type": "object", "properties": {
+    "to": {"type": "string"},
+    "apiKey": {"type": "string", "description": "Like sk-proj-EXAMPLE000000000000000000000077", "default": "OaiDefault2026Qx9", "enum": ["OaiEnum2026QxQx9"]},
+    "client_secret": {"type": "string", "const": "OaiConst2026QxQx9"},
+    "headers": {"type": "object", "default": {"Authorization": "Bearer OaiHdrDef2026Qx9"}}
+  }}}}]}

@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { audit, toMarkdown, toSarif, toTable } from '../src/index.ts';
-import { redactFile } from '../src/secrets.ts';
+import { redactFile, redactFree } from '../src/secrets.ts';
 
 type Case = [label: string, name: string, text: string, secrets: string[]];
 const j = (o: unknown) => JSON.stringify(o, null, 2);
@@ -82,7 +82,7 @@ for (const c of CASES) {
 test('reviewer C1-C3 secrets sit inside an excerpt window, masked', () => {
   for (const c of CASES.filter(([l]) => /^C[123] /.test(l))) {
     const ex = audit(withTools(c)).findings.flatMap((f) => f.excerpt.map((l) => l.text)).join('\n');
-    assert.ok(ex.includes('••••'), `${c[0]}: ${ex}`);
+    assert.ok(ex.includes('••••') || ex.includes('(description hidden)'), `${c[0]}: ${ex}`);
   }
 });
 
@@ -126,7 +126,8 @@ paths:
   const r = audit([{ name: 'api.yaml', text }, { name: 'iam.json', text: iam }]);
   const a = r.actions.find((x) => x.operationId)!;
   assert.equal(a.operationId, 'issue_refund_v2');
-  assert.ok(a.description!.endsWith('?version=••••••)'), a.description);
+  assert.equal(a.description, undefined, 'R22: no free text in the result');
+  assert.ok(redactFree('Issue a refund (see https://docs.example.com/refunds?version=2024-06-01)').endsWith('?version=••••••)'));
   assert.deepEqual(r.actions.find((x) => x.kind === 'iam')!.resource, ['arn:aws:secretsmanager:us-east-1:123456789012:secret:token-AbC123']);
   const red = redactFile('api.yaml', text).text;
   assert.ok(red.includes('8e03978e-40d5-43e8-bc93-6894a57f9324') && red.includes('version: 2.4.1') && red.includes('bearerFormat: JWT'), red);

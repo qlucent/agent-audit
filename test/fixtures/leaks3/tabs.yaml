@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info: { title: tabs, version: "1" }
+paths:
+  /users/{id}:
+    delete:
+      operationId: deleteUser
+      description:	"api_key=	TabVal2026QxQx9"
+      x-api-key:	TabKey2026QxQx9
+      parameters:
+	- name: X-Api-Key
+	  in: header
+	  example: TabHdr2026QxQx9
+      responses: { "200": { description: ok } }

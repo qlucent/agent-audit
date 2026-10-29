@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: Payments
+  version: 2.1.0-beta.3
+  x-api-key: XApiKeyInfo2026Qx9
+  x-sample-auth: "Bearer XSampleAuth2026QxQx9"
+  x-default-headers:
+    X-Api-Key: XDefHdr2026QxQx9
+  x-postman-auth:
+    type: apikey
+    value: XPostman2026QxQx9
+servers:
+  - url: https://{tenant}.api.example.com/{basePath}
+    variables:
+      tenant:
+        default: acme
+      apiKey:
+        default: SrvVarDefault2026Qx9
+        enum: [SrvVarEnumA2026Qx9, SrvVarEnumB2026Qx9]
+        description: the key
+      token:
+        default: SrvVarTok2026QxQx9
+  - url: https://api.example.com?access_token={token}
+    x-token: XSrvTok2026QxQx9
+paths:
+  /payments/{id}/refund:
+    post:
+      operationId: refundPayment
+      x-codeSamples:
+        - lang: curl
+          source: 'curl -X POST -H "X-Api-Key: CodeSample2026QxQx9" https://api.example.com/payments/1/refund'
+      x-amazon-apigateway-integration:
+        uri: https://hooks.example.com/r
+        credentials: arn:aws:iam::123456789012:role/apigw
+        requestParameters:
+          integration.request.header.x-api-key: "'IntegHdr2026QxQx9'"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 3fa85f64-5717-4562-b3fc-2c963f66afa6 }
+        - name: X-Api-Key
+          in: header
+          schema: { type: string, enum: [HdrEnum2026QxQx9] }
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                amount: { type: integer }
+                client_secret: { type: string, const: FormConst2026Qx9 }
+            example: "amount=100&client_id=abc&client_secret=FormEx2026QxQx9"
+            examples:
+              basic:
+                value: amount=100&api_key=FormExs2026QxQx9
+              obj:
+                value: { amount: 5, client_secret: FormObj2026QxQx9 }
+            encoding:
+              client_secret: { contentType: text/plain }
+      responses:
+        "200": { description: ok }

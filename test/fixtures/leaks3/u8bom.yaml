@@ -1,0 +1,22 @@
+﻿openapi: 3.0.3
+info: { title: crlf, version: "1" }
+# api_key=B8yComment2026Qx9
+paths:
+  /payments/{id}/refund:
+    post:
+      operationId: refundPayment
+      description: "Example: Authorization: Bearer B8yDesc2026QxQx9"
+      parameters:
+        - name: Authorization
+          in: header
+          example: Basic dXNlcjpDcmxmQmFzaWMyMDI2UXg5
+        - name: id
+          in: path
+          schema: { type: string }
+      x-client-secret: |
+        B8yBlock2026QxQx9
+        B8yBlock2nd2026Qx9
+      x-note: >-
+        password=B8yFolded2026Qx9
+        token: B8yFolded2nd2026Qx9
+      responses: { "200": { description: ok } }

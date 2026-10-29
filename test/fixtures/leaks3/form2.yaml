@@ -1,0 +1,23 @@
+openapi: 3.0.3
+info: { title: oauth, version: "1" }
+paths:
+  /oauth/token:
+    post:
+      operationId: issueToken
+      summary: Exchange credentials and send email
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            example: |
+              grant_type=client_credentials&client_id=svc&client_secret=FormBlock2026Qx9
+            schema:
+              type: object
+              properties:
+                grant_type: { type: string, enum: [client_credentials, refresh_token] }
+                refresh_token: { type: string, example: FormRefresh2026Qx9 }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              example: { access_token: RespAccess2026Qx9, token_type: Bearer, expires_in: 3600 }

@@ -1,0 +1,11 @@
+[
+  {"name": "refund_payment",
+   "description": "Refunds a payment.\n\n```bash\ncurl -H \"Authorization: Bearer MdFence2026QxQx9\" https://api.example.com/refund\ncurl -H 'X-Api-Key: MdFenceKey2026Qx9' -d amount=1 https://api.example.com\ncurl https://api.example.com/v1?api_key=MdQuery2026Qx9\n```\nOr set `Authorization: Bearer MdInline2026QxQx9` yourself. **API key:** MdBold2026QxQx9z. **Token**: MdBoldTok2026Qx9z\n\n| Header | Value |\n|---|---|\n| X-Api-Key | MdTable2026QxQx9 |\n",
+   "input_schema": {"type": "object", "properties": {
+     "amount": {"type": "number"},
+     "client_secret": {"type": "string", "const": "SchemaConst2026Qx9", "default": "SchemaDef2026Qx9"},
+     "apiKey": {"type": "string", "default": "SchemaApiDef2026Qx9", "examples": ["SchemaApiEx2026Qx9"], "description": "Your key, e.g. sk-ant-api03-EXAMPLE0000000000000000000"},
+     "auth": {"type": "string", "description": "Sample: Bearer ParamDesc2026QxQx9"},
+     "note": {"type": "string", "description": "Your API key (e.g. 7c1f9e2a4b6d8c0e1f2a3b4c5d6e7f80)"}
+   }}}
+]

@@ -1,1 +1,4 @@
 * text=auto eol=lf
+test/fixtures/leaks3/crlf.yaml -text
+test/fixtures/leaks3/u16.* -text
+test/fixtures/leaks3/u8bom.* -text

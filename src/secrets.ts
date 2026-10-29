@@ -5,18 +5,20 @@
 import { createScanner, parseTree, type Node, type ParseError } from 'jsonc-parser';
 import { isAlias, isMap, isScalar, isSeq, parseDocument, type Document, type Scalar } from 'yaml';
 import { mask } from '@qlucent/mcp-audit';
-import { looksJson } from './parse/json.ts';
+import { bomless, looksJson } from './parse/json.ts';
 
 export const HIDDEN = '••••••';
 
+// Unanchored inside words (`AllowAKIA…` in a Sid, R4), bounded so they stay linear. Only the generic `sk-` keeps a
+// word boundary, since `task-`/`disk-` names would match it.
 const PROVIDERS = [
-  /(?<![A-Za-z0-9])(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/,
-  /(?<![A-Za-z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}(?![A-Za-z0-9])/,
-  /(?<![A-Za-z0-9])xox[bpar]-[A-Za-z0-9-]{10,}/,
-  /(?<![A-Za-z0-9])sk-ant-[A-Za-z0-9_-]{20,}/,
-  /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}/,
-  /(?<![A-Za-z0-9])[sr]k_live_[A-Za-z0-9]{20,}/,
-  /(?<![A-Za-z0-9])AIza[A-Za-z0-9_-]{35}/,
+  /(?:gh[pousr]_[A-Za-z0-9]{20,255}|github_pat_[A-Za-z0-9_]{20,255})/,
+  /(?<![A-Z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}(?![A-Z0-9])/,
+  /xox[bpar]-[A-Za-z0-9-]{10,255}/,
+  /sk-ant-[A-Za-z0-9_-]{20,255}/,
+  /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,255}/,
+  /[sr]k_live_[A-Za-z0-9]{20,255}/,
+  /AIza[A-Za-z0-9_-]{35}/,
 ];
 const TOKEN_SRC = PROVIDERS.map((r) => r.source).join('|');
 const TOKEN = new RegExp(TOKEN_SRC, 'g');
@@ -41,13 +43,20 @@ const REFERENCE = [/^\$\{[^}]*\}$/, /^\$[A-Za-z_][A-Za-z0-9_]*$/, /^\{\{[^}]*\}\
 
 const SECRET_TOKENS = new Set(['token', 'secret', 'key', 'apikey', 'password', 'passwd', 'pwd', 'pat', 'auth', 'authorization', 'credential', 'credentials', 'bearer', 'pw']);
 const NON_SECRET_LAST = new Set(['file', 'path', 'dir', 'url', 'uri', 'env', 'sock', 'socket', 'name', 'mode', 'type', 'arn', 'id', 'region', 'endpoint',
-  'format', 'length', 'min', 'max', 'method', 'scheme']);
+  'format', 'length', 'min', 'max', 'method', 'scheme', 'version', 'policy', 'status', 'ttl']);
 // Spec structure inside a secret-named subtree (a security scheme, a schema property): never the secret itself.
 const STRUCTURE = new Set(['type', 'format', 'in', 'name', 'scheme', 'bearerFormat', 'description', 'summary', 'title', 'required', 'nullable',
   'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', '$ref', 'tokenUrl', 'authorizationUrl', 'refreshUrl', 'openIdConnectUrl',
   'operationId', 'enum', 'writeOnly', 'readOnly', 'deprecated', 'scopes']);
 // Maps whose keys are names (paths, components), not properties holding a value: their keys never force (N5).
-const NAME_MAPS = new Set(['paths', 'schemas', 'securitySchemes', 'parameters', 'requestBodies', 'responses', 'definitions', 'flows']);
+const NAME_MAPS = new Set(['paths', 'schemas', 'securitySchemes', 'parameters', 'requestBodies', 'responses', 'definitions', '$defs', 'flows',
+  'properties', 'patternProperties']);
+// Under a secret-named schema property only its own values are the secret (R5); enum members only when secret-shaped (R3).
+const SCHEMA_VALUES = new Set(['example', 'examples', 'default', 'const', 'x-example', 'x-examples']);
+const PROPERTY_MAPS = new Set(['properties', 'patternProperties']);
+// Free text, never output verbatim (R22): these keys' string values, and every string under an `x-*` key.
+const FREE_TEXT = new Set(['description', 'summary', 'title', 'purpose']);
+export const HIDDEN_TEXT = '(description hidden)';
 // An OpenAPI parameter or header carrying a credential, and a security scheme: these children hold its value (N1).
 const VALUE_KEYS = new Set(['example', 'examples', 'content', 'schema', 'default', 'x-example', 'x-examples']);
 const CREDENTIAL_HEADER = /^(?:authorization|proxy-authorization|cookie|set-cookie)$/i;
@@ -70,9 +79,8 @@ function entropy(s: string): number {
   return h;
 }
 /** Raw values the final pass also hides wherever they turn up: secret-shaped only (M1), so a name never matches. */
-const keep = (raws: string[], v: string) => {
-  if (IS_TOKEN.test(v) || (v.length >= 16 && /\d/.test(v) && /[A-Za-z]/.test(v) && !/\s/.test(v) && entropy(v) >= 3.5)) raws.push(v);
-};
+const shaped = (v: string) => IS_TOKEN.test(v) || (v.length >= 16 && /\d/.test(v) && /[A-Za-z]/.test(v) && !/\s/.test(v) && entropy(v) >= 3.5);
+const keep = (raws: string[], v: string) => { if (shaped(v)) raws.push(v); };
 /** Looks like a credential rather than a prose word: a digit, base64 padding/slashes, or inner capitals. */
 const tokenish = (v: string) => /\d/.test(v) || /[+/=]/.test(v) || (/[A-Z]/.test(v.slice(1)) && /[a-z]/.test(v));
 /** A bare one-word value after a secret name in prose: `Token: returned by` keeps `returned` (N5). */
@@ -144,14 +152,19 @@ interface Adapter<N> {
   resolve(n: N): N | undefined;
   /** String value of a scalar child, for the parameter / security-scheme checks. */
   str(n: N | undefined): string | undefined;
-  scalar(n: N, force: boolean): void;
+  scalar(n: N, mode: Mode): void;
 }
+/** How a scalar is shown: masked whole, masked when secret-shaped, hidden as free text, or scanned. */
+type Mode = 'mask' | 'shape' | 'hide' | 'scan';
+/** Masking state of a subtree: `true` everything (minus structure), `schema` a secret-named schema property's own
+ * values only, `shape` secret-shaped values only (enum members). */
+type Force = boolean | 'schema' | 'shape';
 
 function walkTree<N extends object>(root: N | undefined, a: Adapter<N>): void {
   const seen = new Set<string>();
   let ids = 0;
   const id = new WeakMap<N, number>();
-  const walk = (n: N | undefined, force: boolean, parent: string): void => {
+  const walk = (n: N | undefined, force: Force, hide: boolean, parent: string): void => {
     if (!n) return;
     const k = a.kind(n);
     if (k === 'alias') {
@@ -159,24 +172,30 @@ function walkTree<N extends object>(root: N | undefined, a: Adapter<N>): void {
       const t = a.resolve(n);
       if (!t) return;
       if (!id.has(t)) id.set(t, ids++);
-      const key = `${id.get(t)}:${force}`;
-      if (!seen.has(key)) { seen.add(key); walk(t, force, parent); }
+      const key = `${id.get(t)}:${force}:${hide}`;
+      if (!seen.has(key)) { seen.add(key); walk(t, force, hide, parent); }
     } else if (k === 'map') {
       const es = a.entries(n);
       const get = (x: string) => a.str(es.find(([key]) => key === x)?.[2]);
       const where = get('in')?.toLowerCase(), name = get('name') ?? '', type = get('type');
       const holdsCredential = (where === 'header' || where === 'query' || where === 'cookie') && ((secretLikeKey(name) && !NOT_CREDENTIAL.test(name)) || CREDENTIAL_HEADER.test(name));
       const scheme = (type === 'apiKey' || type === 'http' || type === 'oauth2' || type === 'openIdConnect') && es.some(([key]) => key === 'scheme' || key === 'in' || key === 'flows');
+      const names = NAME_MAPS.has(parent);
       for (const [key, kn, v] of es) {
-        if (kn) a.scalar(kn, false);
-        const child = (holdsCredential || scheme) && VALUE_KEYS.has(key) ? true
-          : NAME_MAPS.has(parent) ? force && !STRUCTURE.has(key) : forceUnder(force, key);
-        walk(v, child, key);
+        if (kn) a.scalar(kn, 'scan');
+        const child: Force = (holdsCredential || scheme) && VALUE_KEYS.has(key) ? true
+          : key === 'enum' && !names ? (force ? 'shape' : false)
+          : force === 'schema' ? (SCHEMA_VALUES.has(key) || forceUnder(false, key))
+          : PROPERTY_MAPS.has(parent) ? (force === true ? !STRUCTURE.has(key) : secretLikeKey(key) ? 'schema' : false)
+          : names ? force === true && !STRUCTURE.has(key)
+          : forceUnder(force === true, key);
+        // R22: free text (and anything under an `x-*` extension) is never shown; a key under a name map is a name.
+        walk(v, child, hide || key.startsWith('x-') || (FREE_TEXT.has(key) && !names), key);
       }
-    } else if (k === 'seq') for (const c of a.items(n)) walk(c, force, '');
-    else if (k === 'scalar') a.scalar(n, force);
+    } else if (k === 'seq') for (const c of a.items(n)) walk(c, force, hide, '');
+    else if (k === 'scalar') a.scalar(n, hide ? 'hide' : force === 'shape' ? 'shape' : force ? 'mask' : 'scan');
   };
-  walk(root, false, '');
+  walk(root, false, false, '');
 }
 
 /** Under a secret key, a non-string scalar is masked only when long enough to be one (a PIN, not `90` or `true`). */
@@ -200,8 +219,9 @@ function walkJson(text: string, tree: Node | undefined, edits: Edit[], raws: str
     items: (n) => n.children ?? [],
     resolve: () => undefined,
     str: (n) => (n?.type === 'string' ? String(n.value) : undefined),
-    scalar: (n, force) => {
-      if (force && maskable(n.value)) {
+    scalar: (n, mode) => {
+      if (mode === 'hide' && n.type === 'string') edits.push({ offset: n.offset, length: n.length, to: JSON.stringify(HIDDEN_TEXT), force: true });
+      else if ((mode === 'mask' || mode === 'hide') && maskable(n.value) || (mode === 'shape' && n.type === 'string' && shaped(String(n.value)))) {
         const v = String(n.value);
         keep(raws, v);
         edits.push({ offset: n.offset, length: n.length, to: JSON.stringify(mask(v)), force: true });
@@ -222,16 +242,27 @@ function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: 
   const blocks: [number, number][] = [];
   const render = (n: Scalar, v: string) =>
     n.type === 'QUOTE_DOUBLE' ? JSON.stringify(v) : n.type === 'QUOTE_SINGLE' ? `'${v.replaceAll("'", "''")}'` : v;
-  const scalar = (n: Scalar, force: boolean) => {
+  const scalar = (n: Scalar, mode: Mode) => {
     const [s, e] = n.range ?? [0, 0];
     if (e <= s) return;
-    force &&= maskable(n.value);
+    const block = n.type === 'BLOCK_LITERAL' || n.type === 'BLOCK_FOLDED';
+    if (block) blocks.push([s, e]);
+    const src = text.slice(s, e);
+    const hide = mode === 'hide' && typeof n.value === 'string';
+    if (hide) {
+      // R22: one marker line per original line; a block keeps its `|` / `>-` header.
+      const nl = src.indexOf('\n');
+      const to = !src.includes('\n') ? JSON.stringify(HIDDEN_TEXT)
+        : block ? src.slice(0, nl + 1) + src.slice(nl + 1).split('\n').map((l) => (/\S/.test(l) ? l.replace(/\S.*?(\r?)$/, `${HIDDEN_TEXT}$1`) : l)).join('\n')
+        : [JSON.stringify(HIDDEN_TEXT) + (src.slice(0, nl).endsWith('\r') ? '\r' : ''), ...src.split('\n').slice(1).map((l) => l.replace(/\S.*?(\r?)$/, '$1'))].join('\n');
+      edits.push({ offset: s, length: e - s, to, force: true });
+      return;
+    }
+    const force = (mode === 'mask' || mode === 'hide') && maskable(n.value) || (mode === 'shape' && typeof n.value === 'string' && shaped(n.value));
     // An anchored value can be aliased anywhere (a description), so its raw is hidden there too whatever its shape.
     if (force && n.anchor) raws.push(String(n.value));
-    const src = text.slice(s, e);
     let to: string | undefined;
-    if (n.type === 'BLOCK_LITERAL' || n.type === 'BLOCK_FOLDED') {
-      blocks.push([s, e]);
+    if (block) {
       // Keep the `|` / `>-` header line; mask or scan the body, line by line, so the line count holds (C2).
       const nl = src.indexOf('\n');
       if (nl < 0) return;
@@ -256,7 +287,7 @@ function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: 
     items: (n) => (isSeq(n) ? (n.items as object[]) : []),
     resolve: (n) => (isAlias(n) ? (n.resolve(doc) as object | undefined) : undefined),
     str: (n) => (n && isScalar(n) && typeof n.value === 'string' ? n.value : undefined),
-    scalar: (n, force) => scalar(n as Scalar, force),
+    scalar: (n, mode) => scalar(n as Scalar, mode),
   });
   // Whole-line `#` comments outside block scalars.
   for (let at = 0; at < text.length;) {
@@ -281,7 +312,7 @@ function walkYaml(text: string, doc: Document | undefined, edits: Edit[], raws: 
  * from this text.
  */
 export function redactFile(name: string, raw: string, tree?: Tree | null): { text: string; raws: string[] } {
-  const text = raw.replace(/^﻿/, ' ');
+  const text = bomless(name, raw);
   const raws: string[] = [];
   const edits: Edit[] = [];
   const json = tree ? tree.json !== undefined : looksJson(name, text);

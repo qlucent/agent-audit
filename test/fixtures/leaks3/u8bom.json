@@ -1,0 +1,27 @@
+﻿{
+	"openapi": "3.0.3",
+	"info": {
+		"title": "t",
+		"version": "1"
+	},
+	"paths": {
+		"/users/{id}": {
+			"delete": {
+				"operationId": "deleteUser",
+				"description": "password:\tBom82026QxQx9",
+				"parameters": [
+					{
+						"name": "X-Api-Key",
+						"in": "header",
+						"example": "Bom8Hdr2026Qx9"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "ok"
+					}
+				}
+			}
+		}
+	}
+}

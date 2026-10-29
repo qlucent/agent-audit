@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info: { title: Token Service API, version: 2024-06-01.3 }
+servers:
+  - url: https://api.example.com/v2
+paths:
+  /tokens/{tokenId}/revoke:
+    post:
+      operationId: revokeApiToken2024
+      summary: Revoke an API token
+      parameters:
+        - name: tokenId
+          in: path
+          schema: { type: string, format: uuid, example: 3fa85f64-5717-4562-b3fc-2c963f66afa6 }
+        - name: X-Request-Id
+          in: header
+          example: 9b2e6f1a-4c3d-4e5f-8a7b-1c2d3e4f5a6b
+        - name: api-version
+          in: query
+          example: 2024-06-01
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token_type: { type: string, enum: [access_token, refresh_token, id_token] }
+                secretArn: { type: string, example: "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/api-key-AbCdEf" }
+                keyId: { type: string, example: 1234abcd-12ab-34cd-56ef-1234567890ab }
+                password_policy: { type: string, enum: [strict, relaxed] }
+                tokenTtl: { type: integer, example: 3600 }
+                apiKeyVersion: { type: string, example: v2.1.0 }
+                credentials:
+                  type: object
+                  properties:
+                    roleArn: { type: string, example: "arn:aws:iam::123456789012:role/token-rotator" }
+                    region: { type: string, example: us-east-1 }
+      responses:
+        "200": { description: "Token revoked; see https://docs.example.com/tokens?version=2" }
+  /users/{userId}/password:
+    put:
+      operationId: resetUserPassword
+      responses: { "204": { description: none } }

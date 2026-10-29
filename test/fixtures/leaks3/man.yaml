@@ -1,0 +1,10 @@
+agent:
+  name: refund-bot
+  purpose: refunds
+  acts_for: [ghp_EXAMPLE0000000000000000000000000066, agent_xoxb-0000000000-EXAMPLEROLE]
+roles:
+  ghp_EXAMPLE0000000000000000000000000066:
+    allow: [refund_payment]
+  agent_xoxb-0000000000-EXAMPLEROLE:
+    allow: ["send_*"]
+approvals: ["refund_sk_live_EXAMPLE00000000000000000088*", "delete_*"]

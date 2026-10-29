@@ -1,0 +1,9 @@
+openapi: 3.0.3
+info: { title: tabs2, version: "1" }
+paths:
+  /users/{id}:
+    delete:
+      operationId: deleteUser
+      description:	"token:	Tab2Val2026QxQx9"
+      x-api-key:	Tab2Key2026QxQx9
+      responses: { "200": { description: ok } }

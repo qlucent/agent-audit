@@ -95,9 +95,11 @@ test('N5: less over-masking: paths, operationIds, enums, scopes, booleans, prose
   const rt = redactFile(tok.name, tok.text).text, rc = redactFile(clean.name, clean.text).text;
   for (const s of ['operationId: createOAuthToken2024v2', 'operationId: deleteUserApiKeyV2x9', 'operationId: refundPaymentV2x9Q', 'example: client_credentials'])
     assert.ok(rt.includes(s), `${s}\n${rt}`);
-  for (const s of ['Token: returned by', 'Key: see docs', 'writeOnly: true', 'enum: [bearer, mac]', 'enum: [active, revoked]', 'enum: [oauth2_v2, saml_v1]',
-    '"accounts:read": read accounts', 'x-secret-rotation-days: 90', 'operationId: resetAccountPassword', 'Rate limit: 5 per hour', 'token: none'])
+  for (const s of ['writeOnly: true', 'enum: [bearer, mac]', 'enum: [active, revoked]', 'enum: [oauth2_v2, saml_v1]',
+    '"accounts:read": read accounts', 'x-secret-rotation-days: 90', 'operationId: resetAccountPassword'])
     assert.ok(rc.includes(s), `${s}\n${rc}`);
+  // Prose is hidden in the file text since R22; the scanner still leaves plain words after a secret label alone.
+  for (const s of ['Token: returned by POST /login. Key: see docs.', 'Rate limit: 5 per hour', 'token: none']) assert.equal(redactFree(s), s);
   const r = audit([tok]);
   assert.deepEqual(r.actions.map((a) => a.operationId), ['createOAuthToken2024v2', 'deleteUserApiKeyV2x9', 'refundPaymentV2x9Q']);
 });
