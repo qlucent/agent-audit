@@ -10,6 +10,7 @@ interface Schema {
   items?: Schema;
   enum?: unknown[];
   minLength?: number;
+  pattern?: string;
 }
 
 const typeOk = (t: string, v: unknown) =>
@@ -20,6 +21,7 @@ function validate(s: Schema, v: unknown, path: Path): [Path, string] | null {
   if (s.type && !typeOk(s.type, v)) return [path, `must be ${s.type}`];
   if (s.enum && !s.enum.includes(v)) return [path, `must be one of: ${s.enum.join(', ')}`];
   if (s.minLength !== undefined && typeof v === 'string' && v.length < s.minLength) return [path, 'must not be empty'];
+  if (s.pattern && typeof v === 'string' && !new RegExp(s.pattern).test(v)) return [path, `must match ${s.pattern}`];
   if (Array.isArray(v) && s.items) {
     for (let i = 0; i < v.length; i++) {
       const e = validate(s.items, v[i], [...path, i]);

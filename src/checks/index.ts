@@ -9,6 +9,7 @@ import { bulkExport } from './bulk.ts';
 import { broadOauthScope } from './oauth.ts';
 import { iamWildcardCheck } from './iam.ts';
 import { noManifest } from './manifest-presence.ts';
+import { exceedsRole, outOfScopeAction } from './scope.ts';
 
 export const checks: Record<string, Check> = {
   'money-no-cap': moneyNoCap,
@@ -24,4 +25,6 @@ export const checks: Record<string, Check> = {
   'broad-oauth-scope': broadOauthScope,
   'iam-wildcard': iamWildcardCheck,
   'no-manifest': noManifest,
+  'out-of-scope-action': outOfScopeAction,
+  'exceeds-role': exceedsRole,
 };

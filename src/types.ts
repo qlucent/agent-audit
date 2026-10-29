@@ -86,12 +86,26 @@ export interface GeneratedData {
 
 export interface Manifest {
   agent: { name: string; purpose?: string; domain?: Domain; acts_for?: string[] };
-  roles?: Record<string, { allow: string[] }>;
+  roles?: Record<string, RoleSpec>;
   approvals?: string[];
   limits?: Record<string, { max_amount?: number; currency?: string; per_day?: number }>;
   out_of_scope?: string[];
   /** Action-name glob -> declared effects/data; these replace the classifier's (R7). */
   actions?: Record<string, { effects?: Effect[]; data?: DataClass[] }>;
+}
+
+/** A manifest role: `allow` entries in the grammar of src/scope.ts. */
+export interface RoleSpec { allow: string[] }
+
+export type MatrixCell = 'allowed' | 'exceeds' | 'exceeds-minor' | 'yes' | '';
+/**
+ * Scope matrix. `roles`: columns `agent` (always `yes`) then each `acts_for` role. `effects` (no manifest or no
+ * `acts_for`): columns are the effects and data classes present, `yes` where the action has one.
+ */
+export interface Matrix {
+  mode: 'roles' | 'effects';
+  columns: string[];
+  rows: { actionId: string; label: string; cells: MatrixCell[] }[];
 }
 
 export interface Rule {
@@ -120,8 +134,7 @@ export interface AuditResult {
   manifest?: Manifest;
   findings: Finding[];
   verdict: Verdict;
-  /** Scope matrix model; shape is defined with the matrix task. */
-  matrix: unknown;
+  matrix: Matrix;
   rulesChecked: number;
 }
 

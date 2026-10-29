@@ -4,7 +4,7 @@ import { humanise } from './parse/json.ts';
 import type { Action, DataClass, Domain, Effect, Evidence, GeneratedData, LexEntry, Manifest } from './types.ts';
 
 const DEFAULT = bundled as unknown as GeneratedData;
-const ALL: Effect[] = ['read', 'write', 'delete', 'money', 'external-send', 'identity-admin', 'code-exec', 'bulk'];
+export const ALL: Effect[] = ['read', 'write', 'delete', 'money', 'external-send', 'identity-admin', 'code-exec', 'bulk'];
 const METHOD: Record<string, Effect> = { GET: 'read', HEAD: 'read', POST: 'write', PUT: 'write', PATCH: 'write', DELETE: 'delete' };
 
 /** `issue_refund`, `issueRefund`, `GET /v1/refunds/{id}` → "issue refund", "get v1 refunds id". */

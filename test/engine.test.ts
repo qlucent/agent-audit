@@ -120,7 +120,7 @@ test('verdict tiers and texts match mcp-audit', () => {
   assert.equal(clear.verdict.level, 'clear');
   assert.equal(clear.verdict.text, `None of the ${rules.length} rules matched this config`);
   assert.equal(clear.rulesChecked, rules.length);
-  assert.deepEqual(clear.matrix, { columns: [], rows: [] });
+  assert.deepEqual(clear.matrix, { mode: 'effects', columns: ['read'], rows: [{ actionId: clear.actions[0]!.id, label: 'Get widget', cells: ['yes'] }] });
   const review = audit([tools(['delete_document'])]);
   assert.equal(review.verdict.level, 'review');
   assert.match(review.verdict.text, /^Review before rollout: 2 low/);

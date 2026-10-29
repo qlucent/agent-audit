@@ -4,6 +4,7 @@ import { parseInputs } from './parse/index.ts';
 import { classify, detectDomain } from './classify.ts';
 import { checks } from './checks/index.ts';
 import { mcpEffects, mcpFindings } from './checks/mcp.ts';
+import { buildMatrix } from './scope.ts';
 import type { AuditResult, CheckContext, FileSummary, Finding, Fixture, GeneratedData, Hit, Rule, Severity, Verdict } from './types.ts';
 
 export { applySeverity } from './checks/util.ts';
@@ -49,7 +50,7 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
 
   const { files } = parsed;
   const verdict = verdictFor(findings, files);
-  return { files, actions, manifest, findings, verdict, matrix: { columns: [], rows: [] }, rulesChecked: rules.length };
+  return { files, actions, manifest, findings, verdict, matrix: buildMatrix(actions, manifest), rulesChecked: rules.length };
 }
 
 /** mcp-audit's verdict wording. Only files that yield actions count as checked: a manifest alone audits nothing. */

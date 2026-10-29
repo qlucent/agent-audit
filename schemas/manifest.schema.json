@@ -22,7 +22,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["allow"],
-        "properties": { "allow": { "type": "array", "items": { "type": "string", "minLength": 1 } } }
+        "properties": { "allow": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^[^ :]+(:(<=[0-9]+([.][0-9]+)?|[^ :<]+))?$", "description": "<target>[:<qualifier>]: target is an effect or an action-name glob; qualifier is own, own-<glob>, <=N or <glob>. See CONTRIBUTING." } } }
       }
     },
     "approvals": { "type": "array", "items": { "type": "string" } },

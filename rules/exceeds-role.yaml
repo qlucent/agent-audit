@@ -1,0 +1,28 @@
+id: exceeds-role
+title: Can do more than a role it acts for
+severity: high
+check: exceeds-role
+why: >-
+  The agent acts for this role, but it can take actions the role is not allowed to take, so a person in that role can
+  ask the agent to do them (confused deputy). High for money, identity, health records and deletes; medium otherwise.
+fix: >-
+  Check the role server-side before each action, or narrow the action (lower cap, own-records only) so it fits the
+  least-privileged role it serves. If the role should have it, add an allow entry such as `refund:<=50`.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/
+fixtures:
+  fail:
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number, maximum: 200 } } } }]
+      manifest:
+        agent: { name: Refund bot, acts_for: [customer, support-agent] }
+        roles: { customer: { allow: ["refund:<=50"] }, support-agent: { allow: ["refund:<=200"] } }
+  pass:
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number, maximum: 40 } } } }]
+      manifest:
+        agent: { name: Refund bot, acts_for: [customer, support-agent] }
+        roles: { customer: { allow: ["refund:<=50"] }, support-agent: { allow: ["refund:<=200"] } }
+    - config: [{ name: get_store_hours, input_schema: { type: object, properties: {} } }]
+      manifest:
+        agent: { name: Store bot, acts_for: [customer, staff] }
+        roles: { customer: { allow: [] }, staff: { allow: ["read"] } }

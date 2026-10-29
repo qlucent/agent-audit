@@ -1,0 +1,24 @@
+id: out-of-scope-action
+title: Can do something the manifest puts out of scope
+severity: high
+check: out-of-scope-action
+why: >-
+  The manifest says this agent must never have this effect, or no role the agent acts for is granted anything like
+  this action. Either the spec gives the agent more than its builders intended, or the manifest is out of date.
+fix: >-
+  Remove the action from the agent's tools, policy or scopes. If it is intended, grant it to the roles that need it
+  (`roles.<role>.allow`) and take it off `out_of_scope`.
+references:
+  - https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - https://owasp.org/www-project-top-10-for-large-language-model-applications/
+fixtures:
+  fail:
+    - config: [{ name: reset_user_mfa, input_schema: { type: object, properties: { user_id: { type: string } } } }]
+      manifest: { agent: { name: Helpdesk bot }, out_of_scope: [identity-admin] }
+    - config: [{ name: issue_refund, input_schema: { type: object, properties: { amount: { type: number, maximum: 20 } } } }]
+      manifest: { agent: { name: Support bot, acts_for: [customer] }, roles: { customer: { allow: ["read:*"] } } }
+  pass:
+    - config: [{ name: reset_user_mfa, input_schema: { type: object, properties: { user_id: { type: string } } } }]
+      manifest: { agent: { name: Helpdesk bot }, out_of_scope: [delete] }
+    - config: [{ name: get_order_status, input_schema: { type: object, properties: { order_id: { type: string } } } }]
+      manifest: { agent: { name: Support bot, acts_for: [customer] }, roles: { customer: { allow: [] } } }
