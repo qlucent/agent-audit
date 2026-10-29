@@ -1,7 +1,7 @@
 import { glob, words } from '../classify.ts';
 import type { Action, CheckContext, LexEntry, Param, Severity } from '../types.ts';
 
-const ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
+export const ORDER: Severity[] = ['critical', 'high', 'medium', 'low'];
 
 /** Spec decision 6: at most one step up and one step down from the base; both together cancel. */
 export function applySeverity(base: Severity, up: boolean, down: boolean): Severity {

@@ -132,3 +132,56 @@ test('MCP pass-through: a github server action gets external-send from mcp-audit
 test('MCP github server + get_patient_record(patient_id) is an exfiltration path', () => {
   assert.deepEqual(sev([github(), tools(['get_patient_record', { patient_id: str }])], 'external-send-sensitive'), ['high']);
 });
+
+// Fix round 1
+const EFFECT_RULES = ['iam-wildcard', 'identity-admin-action', 'code-exec-action', 'bulk-export'];
+const effectIds = (inputs: { name: string; text: string }[]) =>
+  audit(inputs).findings.filter((f) => EFFECT_RULES.includes(f.ruleId)).map((f) => `${f.ruleId}:${f.severity}`);
+
+test('I1: one IAM finding per statement for exact actions iam-wildcard reports', () => {
+  for (const Action of ['iam:PassRole', 'sts:AssumeRole', 'iam:CreateUser', 'iam:CreateAccessKey', 'lambda:CreateFunction'])
+    assert.deepEqual(effectIds([iam({ Effect: 'Allow', Action, Resource: '*' })]), ['iam-wildcard:high'], Action);
+  // Higher severity survives: an L1 agent's identity-admin critical is kept next to iam-wildcard high.
+  const l1 = manifest({ agent: { name: 'B', purpose: 'L1 helpdesk for employees' } });
+  assert.deepEqual(effectIds([iam({ Effect: 'Allow', Action: 'iam:PassRole', Resource: '*' }), l1]).sort(),
+    ['iam-wildcard:high', 'identity-admin-action:critical']);
+  // Not reported by iam-wildcard: the effect rule still fires.
+  assert.deepEqual(effectIds([iam({ Effect: 'Allow', Action: 'ssm:SendCommand', Resource: '*' })]), ['code-exec-action:high']);
+});
+
+test('R14: bulk-export only on bulk-classified actions; list_orders(limit) is not bulk', () => {
+  assert.deepEqual(sev([tools(['list_orders', { limit: { type: 'integer' } }])], 'bulk-export'), []);
+});
+
+test('R15: catalogue evidence counts for data and send: ses:SendEmail + secretsmanager:GetSecretValue fires', () => {
+  const r = [iam({ Effect: 'Allow', Action: ['ses:SendEmail', 'secretsmanager:GetSecretValue'], Resource: 'arn:aws:ses:us-east-1:111122223333:identity/example.com' })];
+  assert.deepEqual(sev(r, 'external-send-sensitive'), ['high']);
+  // mcp-audit's broad private_data (mapped to pii) is not a curated data class: a lone github server does not fire.
+  assert.deepEqual(sev([github()], 'external-send-sensitive'), []);
+});
+
+test('M2: one evidence entry per effect or data class from the catalogue', () => {
+  const r = audit([iam({ Effect: 'Allow', Action: ['iam:CreateAccessKey', 'iam:*'], Resource: 'arn:aws:iam::111122223333:user/x' },
+    { Effect: 'Allow', NotAction: 'iam:*', Resource: 'arn:aws:s3:::b' })]);
+  for (const a of r.actions) {
+    const tags = a.evidence.map((e) => e.effect);
+    assert.deepEqual(tags, [...new Set(tags)], a.name);
+    assert.equal(tags.length, a.effects.length + a.data.length, a.name);
+  }
+});
+
+test('M3: iam-wildcard detail mentions a Condition; severity unchanged', () => {
+  const f = of([iam({ Effect: 'Allow', Action: 's3:DeleteObject', Resource: '*', Condition: { StringEquals: { 'aws:RequestedRegion': 'eu-west-1' } } })], 'iam-wildcard');
+  assert.deepEqual(f.map((x) => x.severity), ['high']);
+  assert.match(f[0]!.detail!, /Condition/);
+  assert.doesNotMatch(of([iam({ Effect: 'Allow', Action: 's3:DeleteObject', Resource: '*' })], 'iam-wildcard')[0]!.detail!, /Condition/);
+});
+
+test('M5: an invalid manifest makes no-manifest say so and point at the file error', () => {
+  const f = of([tools(['get_widget']), { name: 'agent.yaml', text: 'agent:\n  name: 3\n' }], 'no-manifest');
+  assert.equal(f.length, 1);
+  assert.match(f[0]!.detail!, /invalid/i);
+  assert.match(f[0]!.detail!, /agent\.yaml/);
+  assert.equal(f[0]!.file, 'agent.yaml');
+  assert.equal(f[0]!.line, 2);
+});

@@ -7,7 +7,9 @@ export const mcpFindings = (files: { name: string; text: string }[]): Finding[] 
 
 const CAP: Partial<Record<Cap, Effect | 'pii'>> = { outbound: 'external-send', code_exec: 'code-exec', writes: 'write', private_data: 'pii' };
 // Two copies of a catalogued untrusted-input + outbound server: with them in the config every catalogued server shows
-// up in mcp-audit's mixes, so a lone server still gets its caps.
+// up in mcp-audit's mixes, so a lone server still gets its caps (R12).
+// ponytail: misses servers whose only caps are writes/code_exec (none in 0.1.0); read the catalogue directly once
+// mcp-audit 0.2 exports it.
 const PROBE = { command: 'uvx', args: ['mcp-server-fetch'] };
 
 /** Effects of `mcp-server` actions from mcp-audit's `mixes[].nodes[].caps`; servers with none are left unclassified. */

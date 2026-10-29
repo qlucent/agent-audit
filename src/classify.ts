@@ -108,8 +108,9 @@ function classifyLexicon(actions: Action[], data: GeneratedData): Action[] {
       if (!list.includes(tag)) list.push(tag);
       if (!a.evidence.some((e) => e.effect === tag && e.why === why)) a.evidence.push({ effect: tag, why, via });
     };
+    // One catalogue evidence entry per effect or data class: the first entry that grants it.
     const fromCatalog = (label: string, effects: Effect[], d: DataClass[] = []) => {
-      for (const t of [...effects, ...d]) add(t, `catalogue: ${label}`, 'catalog');
+      for (const t of [...effects, ...d]) if (!a.evidence.some((e) => e.effect === t && e.via === 'catalog')) add(t, `catalogue: ${label}`, 'catalog');
     };
 
     if (a.kind === 'scope') {
@@ -125,7 +126,7 @@ function classifyLexicon(actions: Action[], data: GeneratedData): Action[] {
       // Everything except the listed patterns: every catalogue entry they do not cover (`*` itself left out).
       const not = a.notAction.map(glob);
       a.label = `Every action except ${a.notAction.join(', ')}`;
-      for (const e of iam) if (e.pattern !== '*' && !not.some((n) => n.test(e.pattern))) fromCatalog(`${e.label} (not excluded by NotAction)`, e.effects, e.data);
+      for (const e of iam) if (e.pattern !== '*' && !not.some((n) => n.test(e.pattern))) fromCatalog(`not excluded by NotAction, e.g. ${e.label}`, e.effects, e.data);
       return a;
     }
     if (a.kind === 'iam') {

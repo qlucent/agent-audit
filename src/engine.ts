@@ -17,7 +17,7 @@ export function audit(inputs: { name: string; text: string }[]): AuditResult {
   const parsed = parseInputs(inputs);
   const { manifest } = parsed;
   const actions = classify(mcpEffects(parsed.actions, parsed.mcpFiles), data, manifest);
-  const ctx: CheckContext = { actions, manifest, domain: detectDomain(manifest, data), data };
+  const ctx: CheckContext = { actions, manifest, domain: detectDomain(manifest, data), data, files: parsed.files };
 
   // Decision 5 lists an action defined in two files twice; its findings show once unless the copies differ.
   const dup = (h: Hit) => actions.find((a) => a.file === h.file && a.name === h.action)?.duplicateOf !== undefined;

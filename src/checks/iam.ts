@@ -1,5 +1,6 @@
 import { glob } from '../classify.ts';
 import type { Action, Check, Severity } from '../types.ts';
+import { broadScopeSeverity } from './oauth.ts';
 
 const ESCALATE = ['iam:PassRole', 'sts:AssumeRole'];
 
@@ -18,17 +19,18 @@ export function iamWildcard(a: Action): Severity | undefined {
 }
 
 /**
- * A wildcard IAM grant iam-wildcard already reports, or a broad scope broad-oauth-scope reports: effect rules
- * (identity, code, bulk) leave it to that one finding.
+ * Severity at which iam-wildcard (IAM grant) or broad-oauth-scope (broad scope) already reports this action. Effect
+ * rules (identity, code, bulk) leave it to that one finding unless theirs is higher.
  */
-export const reportedElsewhere = (a: Action) =>
-  (a.kind === 'scope' && !!a.broad) || (a.kind === 'iam' && (!!a.notAction || a.name.includes('*')) && iamWildcard(a) !== undefined);
+export const reportedAt = (a: Action): Severity | undefined =>
+  a.kind === 'scope' ? (a.broad ? broadScopeSeverity(a) : undefined) : iamWildcard(a);
 
 export const iamWildcardCheck: Check = (ctx) =>
   ctx.actions.flatMap((a) => {
     const severity = iamWildcard(a);
     if (!severity) return [];
-    const res = a.resource?.length ? a.resource.join(', ') : 'no Resource';
+    const res = (a.resource?.length ? a.resource.join(', ') : 'no Resource') +
+      (a.condition ? ' (the statement has Conditions: check they actually narrow it)' : '');
     return [{
       file: a.file, loc: a.loc, action: a.name, severity,
       detail: a.notAction

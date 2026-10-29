@@ -1,5 +1,5 @@
 import type { Check } from '../types.ts';
-import { reportedElsewhere } from './iam.ts';
+import { reportedAt } from './iam.ts';
 import { paramMatcher } from './util.ts';
 
 const SENSITIVE = ['pii', 'phi', 'financial-data', 'credentials'] as const;
@@ -8,7 +8,7 @@ const SENSITIVE = ['pii', 'phi', 'financial-data', 'credentials'] as const;
 export const bulkExport: Check = (ctx) => {
   const isLimit = paramMatcher(ctx.data.lexicon.limits);
   return ctx.actions.flatMap((a) => {
-    if (!a.effects.includes('bulk') || reportedElsewhere(a)) return [];
+    if (!a.effects.includes('bulk') || reportedAt(a)) return [];
     const cls = SENSITIVE.filter((c) => a.data.includes(c));
     const capped = a.params.some((p) => isLimit(p) && p.maximum !== undefined);
     if (!cls.length && capped) return [];
